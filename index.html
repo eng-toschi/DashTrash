@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Aderência - Fábrica ⇄ Fazenda</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+    <div x-data="dashboardApp()" x-init="init()" class="container mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-3xl font-bold text-gray-800">Dashboard de Aderência - Fábrica ⇄ Fazenda</h1>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+                        <span class="text-sm text-gray-600" x-text="'Última atualização: ' + formatTime(ultimaAtualizacao)"></span>
+                    </div>
+                    <button 
+                        @click="modoTv = !modoTv"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                        :class="modoTv ? 'ring-2 ring-blue-500' : ''">
+                        <span x-text="modoTv ? '📺 Modo TV' : '🖱️ Modo Interativo'"></span>
+                    </button>
+                </div>
+            </div>
+            <!-- Busca e Filtros -->
+            <div class="space-y-4" :class="modoTv ? 'hidden' : ''">
+                <!-- Busca Rápida -->
+                <div class="flex gap-4 items-center">
+                    <div class="flex-1">
+                        <label class="block text-sm text-gray-700 font-medium mb-2">Busca Rápida</label>
+                        <input 
+                            type="text"
+                            x-model="termoBusca"
+                            @input="onBuscaChange()"
+                            placeholder="Buscar por placa, motorista ou fazenda..."
+                            class="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Filtro por Status -->
+                    <div>
+                        <label class="block text-sm text-gray-700 font-medium mb-2">Status</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button 
+                                @click="toggleFiltroStatus('Aderente')"
+                                class="px-3 py-1 rounded-lg text-sm border transition-colors"
+                                :class="filtros.status.includes('Aderente') ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'">
+                                Aderente
+                            </button>
+                            <button 
+                                @click="toggleFiltroStatus('Risco')"
+                                class="px-3 py-1 rounded-lg text-sm border transition-colors"
+                                :class="filtros.status.includes('Risco') ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'">
+                                Risco
+                            </button>
+                            <button 
+                                @click="toggleFiltroStatus('Atrasado')"
+                                class="px-3 py-1 rounded-lg text-sm border transition-colors"
+                                :class="filtros.status.includes('Atrasado') ? 'bg-rose-100 text-rose-700 border-rose-300' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'">
+                                Atrasado
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filtro por Etapa -->
+                    <div>
+                        <label class="block text-sm text-gray-700 font-medium mb-2">Etapa</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button 
+                                @click="toggleFiltroEtapa('IDA')"
+                                class="px-3 py-1 rounded-lg text-sm border transition-colors"
+                                :class="filtros.etapa.includes('IDA') ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'">
+                                IDA
+                            </button>
+                            <button 
+                                @click="toggleFiltroEtapa('VOLTA')"
+                                class="px-3 py-1 rounded-lg text-sm border transition-colors"
+                                :class="filtros.etapa.includes('VOLTA') ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'">
+                                VOLTA
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filtro por Fazenda -->
+                    <div>
+                        <label class="block text-sm text-gray-700 font-medium mb-2">Fazendas</label>
+                        <div class="max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-2 bg-white">
+                            <template x-for="fazenda in fazendasUnicas" :key="fazenda">
+                                <label class="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
+                                    <input 
+                                        type="checkbox"
+                                        :checked="filtros.fazendas.includes(fazenda)"
+                                        @change="toggleFiltroFazenda(fazenda)"
+                                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span class="text-sm text-gray-700" x-text="fazenda"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contador e Limpar Filtros -->
+                <div class="flex justify-between items-center">
+                    <div class="text-sm text-gray-600">
+                        <span x-text="'Mostrando ' + totalResultados + ' de ' + veiculos.length + ' veículos'"></span>
+                        <span x-show="temFiltrosAtivos" class="ml-2 text-blue-600 font-medium">(filtros ativos)</span>
+                    </div>
+                    <button 
+                        @click="limparFiltros()"
+                        x-show="temFiltrosAtivos"
+                        class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm transition-colors">
+                        Limpar Filtros
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Panorama Operacional -->
+        <section class="mb-8">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Panorama Operacional</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <!-- Total de Veículos -->
+                <div class="bg-white rounded-lg p-6 border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                     @click="limparFiltros()">
+                    <div class="text-sm text-gray-600 mb-2">Total de Veículos</div>
+                    <div class="text-5xl font-bold text-gray-800" x-text="veiculos.length"></div>
+                    <div class="text-xs text-gray-500 mt-1" x-show="temFiltrosAtivos" x-text="'(' + veiculosFiltrados.length + ' filtrados)'"></div>
+                </div>
+
+                <!-- Aderência Geral -->
+                <div class="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+                    <div class="text-sm text-gray-600 mb-2">Aderência Geral</div>
+                    <div class="text-5xl font-bold" 
+                         :class="getAderenciaGeralColor(aderenciaGeral)"
+                         x-text="aderenciaGeral.toFixed(1) + '%'"></div>
+                </div>
+
+                <!-- Veículos Atrasados -->
+                <div class="bg-white rounded-lg p-6 border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                     @click="filtrarPorStatus('Atrasado')">
+                    <div class="text-sm text-gray-600 mb-2">Veículos Atrasados</div>
+                    <div class="text-5xl font-bold text-rose-600" x-text="veiculosAtrasados"></div>
+                    <div class="text-sm text-gray-500 mt-1" 
+                         x-text="veiculosFiltrados.length > 0 ? '(' + ((veiculosAtrasados / veiculosFiltrados.length) * 100).toFixed(1) + '%)' : '(0%)'"></div>
+                </div>
+
+                <!-- Veículos em Risco -->
+                <div class="bg-white rounded-lg p-6 border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                     @click="filtrarPorStatus('Risco')">
+                    <div class="text-sm text-gray-600 mb-2">Veículos em Risco</div>
+                    <div class="text-5xl font-bold text-amber-600" x-text="veiculosRisco"></div>
+                    <div class="text-sm text-gray-500 mt-1" 
+                         x-text="veiculosFiltrados.length > 0 ? '(' + ((veiculosRisco / veiculosFiltrados.length) * 100).toFixed(1) + '%)' : '(0%)'"></div>
+                </div>
+            </div>
+            
+            <!-- Cards de Resumo por Status -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-emerald-50 rounded-lg p-4 border border-emerald-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                     @click="filtrarPorStatus('Aderente')">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="text-sm text-emerald-700 font-medium">Aderentes</div>
+                            <div class="text-3xl font-bold text-emerald-600" x-text="veiculosAderentes"></div>
+                        </div>
+                        <div class="text-2xl">✓</div>
+                    </div>
+                </div>
+                <div class="bg-amber-50 rounded-lg p-4 border border-amber-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                     @click="filtrarPorStatus('Risco')">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="text-sm text-amber-700 font-medium">Em Risco</div>
+                            <div class="text-3xl font-bold text-amber-600" x-text="veiculosRisco"></div>
+                        </div>
+                        <div class="text-2xl">⚠</div>
+                    </div>
+                </div>
+                <div class="bg-rose-50 rounded-lg p-4 border border-rose-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                     @click="filtrarPorStatus('Atrasado')">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="text-sm text-rose-700 font-medium">Atrasados</div>
+                            <div class="text-3xl font-bold text-rose-600" x-text="veiculosAtrasados"></div>
+                        </div>
+                        <div class="text-2xl">✗</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barra de Saúde da Operação -->
+            <div class="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-lg font-semibold text-gray-800">Saúde da Operação</span>
+                    <span class="text-sm text-gray-600" x-text="aderenciaGeral.toFixed(1) + '%'"></span>
+                </div>
+                <div class="w-full h-8 bg-gray-200 rounded-full overflow-hidden">
+                    <div class="h-full flex">
+                        <div class="bg-emerald-500 transition-all duration-500" 
+                             :style="'width: ' + getPercentualVerde() + '%'"></div>
+                        <div class="bg-amber-500 transition-all duration-500" 
+                             :style="'width: ' + getPercentualAmarelo() + '%'"></div>
+                        <div class="bg-rose-500 transition-all duration-500" 
+                             :style="'width: ' + getPercentualVermelho() + '%'"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Top 10 Veículos Críticos -->
+        <section class="mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    Top <span x-text="mostrarTodosCriticos ? '50' : '10'"></span> Veículos Críticos
+                </h2>
+                <button 
+                    @click="mostrarTodosCriticos = !mostrarTodosCriticos"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                    :class="modoTv ? 'hidden' : ''">
+                    <span x-text="mostrarTodosCriticos ? 'Mostrar Menos' : 'Mostrar Mais'"></span>
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <template x-for="(veiculo, index) in topCriticos" :key="veiculo.placa">
+                    <div class="bg-white rounded-lg p-6 border-2 transition-all shadow-sm"
+                         :class="getStatusBorderColor(veiculo.status)">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <div class="text-2xl font-bold text-gray-800" x-text="veiculo.placa"></div>
+                                <div class="text-sm text-gray-600 mt-1" x-text="veiculo.motorista"></div>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold"
+                                  :class="getEtapaBadgeClass(veiculo.etapa)"
+                                  x-text="veiculo.etapa"></span>
+                        </div>
+
+                        <div class="mb-4" x-show="veiculo.emAlmoco">
+                            <div class="bg-amber-50 border border-amber-300 rounded px-3 py-2 text-sm text-amber-700">
+                                ⏸️ ALMOÇO
+                            </div>
+                        </div>
+
+                        <div class="space-y-2 mb-4">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">KM Previsto:</span>
+                                <span class="text-gray-800 font-semibold" x-text="veiculo.kmPrevisto.toFixed(1)"></span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">KM Executado:</span>
+                                <span class="text-gray-800 font-semibold" x-text="veiculo.kmExecutado.toFixed(1)"></span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Diferença:</span>
+                                <span class="font-semibold" 
+                                      :class="veiculo.diferenca >= 0 ? 'text-emerald-600' : 'text-rose-600'"
+                                      x-text="(veiculo.diferenca >= 0 ? '+' : '') + veiculo.diferenca.toFixed(1) + ' km'"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                <span>Aderência</span>
+                                <span x-text="veiculo.aderencia.toFixed(1) + '%'"></span>
+                            </div>
+                            <div class="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div class="h-full transition-all duration-500" 
+                                     :class="getStatusColor(veiculo.status)"
+                                     :style="'width: ' + Math.min(veiculo.aderencia, 100) + '%'"></div>
+                            </div>
+                        </div>
+
+                        <div class="text-xs text-gray-500 mt-2" x-text="veiculo.fazenda"></div>
+                    </div>
+                </template>
+            </div>
+        </section>
+
+        <!-- Lista Completa -->
+        <section>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Ranking Geral</h2>
+                <div class="flex items-center gap-4" :class="modoTv ? 'hidden' : ''">
+                    <label class="text-sm text-gray-700">Itens por página:</label>
+                    <select 
+                        x-model="itensPorPagina"
+                        @change="paginaAtual = 1"
+                        class="px-3 py-1 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500">
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto" 
+                     :class="modoTv ? 'max-h-[600px] overflow-y-auto' : ''"
+                     id="lista-veiculos">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 sticky top-0 border-b border-gray-200">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">#</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 sticky left-0 bg-gray-50">Placa</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Motorista</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Etapa</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Fazenda</th>
+                                <th class="px-3 py-2 text-right text-xs font-semibold text-gray-700">KM Previsto</th>
+                                <th class="px-3 py-2 text-right text-xs font-semibold text-gray-700">KM Executado</th>
+                                <th class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Diferença</th>
+                                <th class="px-3 py-2 text-center text-xs font-semibold text-gray-700 sticky right-0 bg-gray-50">Status</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Progresso</th>
+                                <th class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Tempo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(veiculo, index) in veiculosPaginados" :key="veiculo.placa">
+                                <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                    <td class="px-3 py-2 text-gray-600" x-text="(paginaAtual - 1) * itensPorPagina + index + 1"></td>
+                                    <td class="px-3 py-2 font-semibold text-gray-800 sticky left-0 bg-white" x-text="veiculo.placa"></td>
+                                    <td class="px-3 py-2 text-gray-700" x-text="veiculo.motorista"></td>
+                                    <td class="px-3 py-2">
+                                        <span class="px-2 py-1 rounded text-xs font-semibold"
+                                              :class="getEtapaBadgeClass(veiculo.etapa)"
+                                              x-text="veiculo.etapa"></span>
+                                        <span x-show="veiculo.emAlmoco" class="ml-1 text-amber-600">⏸️</span>
+                                    </td>
+                                    <td class="px-3 py-2 text-gray-600" x-text="veiculo.fazenda"></td>
+                                    <td class="px-3 py-2 text-right text-gray-700" x-text="veiculo.kmPrevisto.toFixed(1)"></td>
+                                    <td class="px-3 py-2 text-right text-gray-700" x-text="veiculo.kmExecutado.toFixed(1)"></td>
+                                    <td class="px-3 py-2 text-right font-semibold"
+                                        :class="veiculo.diferenca >= 0 ? 'text-emerald-600' : 'text-rose-600'"
+                                        x-text="(veiculo.diferenca >= 0 ? '+' : '') + veiculo.diferenca.toFixed(1) + ' km'"></td>
+                                    <td class="px-3 py-2 text-center sticky right-0 bg-white">
+                                        <span class="px-2 py-1 rounded-full text-xs font-semibold"
+                                              :class="getStatusBadgeClass(veiculo.status)"
+                                              x-text="veiculo.status"></span>
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        <div class="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div class="h-full transition-all duration-500"
+                                                 :class="getStatusColor(veiculo.status)"
+                                                 :style="'width: ' + Math.min(veiculo.aderencia, 100) + '%'"></div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2 text-right text-gray-600 text-xs" x-text="formatTempoDecorrido(veiculo.tempoDecorrido)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Paginação -->
+                <div class="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between" :class="modoTv ? 'hidden' : ''">
+                    <div class="text-sm text-gray-700">
+                        <span x-text="'Página ' + paginaAtual + ' de ' + totalPaginas"></span>
+                        <span class="ml-2 text-gray-500" x-text="'(' + totalResultados + ' resultados)'"></span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button 
+                            @click="irParaPagina(1)"
+                            :disabled="paginaAtual === 1"
+                            class="px-3 py-1 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                            « Primeira
+                        </button>
+                        <button 
+                            @click="paginaAnterior()"
+                            :disabled="paginaAtual === 1"
+                            class="px-3 py-1 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                            ‹ Anterior
+                        </button>
+                        <button 
+                            @click="proximaPagina()"
+                            :disabled="paginaAtual === totalPaginas"
+                            class="px-3 py-1 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                            Próxima ›
+                        </button>
+                        <button 
+                            @click="irParaPagina(totalPaginas)"
+                            :disabled="paginaAtual === totalPaginas"
+                            class="px-3 py-1 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                            Última »
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/mock-data.js"></script>
+    <script src="js/calculations.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+

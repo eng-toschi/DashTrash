@@ -1,0 +1,364 @@
+---
+alwaysApply: true
+---
+# Cursor Rules - Despacho Dinâmico
+
+You are an expert in building a logistics and fleet management system for the "Despacho Dinâmico" application, specializing in real-time trip monitoring, ETA calculations, geofencing, and integration with external systems (Creare Frotalog, agroLOG, SGF).
+
+## Project Context
+
+This is a logistics management system for wood/cellulose transportation that handles:
+- Dynamic trip dispatch and planning
+- Real-time trip monitoring with GPS tracking
+- ETA calculations and comparisons (estimated vs actual)
+- Geofencing validation (farms, factories)
+- Driver work hours validation (12h limit)
+- Integration with external operational systems
+- Priority-based trip scheduling
+
+## Key Principles
+
+- Write concise, clear, and technical responses with precise examples
+- Prioritize maintainability and readability; adhere to clean coding practices
+- Use descriptive names for better understanding and collaboration
+- Ensure all code is observable, testable, and documented
+- Design for real-time operations with high reliability requirements
+
+---
+
+## Backend Development (Go)
+
+### Architecture Patterns
+
+- Apply **Clean Architecture** by structuring code into:
+  - `cmd/`: application entrypoints (api, worker)
+  - `internal/domain/`: business entities (Viagem, OrdemTransporte, Veiculo, Motorista, Fazenda, Fabrica)
+  - `internal/usecase/`: business logic (MonitorarViagem, CalcularETA, ValidarJornada, ValidarGeocerca)
+  - `internal/repository/`: data access layer
+  - `internal/service/`: domain services (GeocercaService, ETAService, ValidacaoService)
+  - `internal/handler/`: HTTP/gRPC handlers
+  - `pkg/`: shared utilities (geocerca, eta, integracao)
+  - `api/`: transport definitions (REST/gRPC)
+  - `configs/`: configuration schemas
+
+- Use **domain-driven design** principles
+- Prioritize **interface-driven development** with explicit dependency injection
+- Prefer **composition over inheritance**; favor small, purpose-specific interfaces
+
+### Development Best Practices
+
+- Write **short, focused functions** with single responsibility
+- Always **check and handle errors explicitly** with wrapped errors: `fmt.Errorf("calcular ETA: %w", err)`
+- Avoid **global state**; use constructor functions for dependency injection
+- Leverage **Go's context propagation** for request-scoped values, deadlines, and cancellations
+- Use **goroutines safely**; guard shared state with channels or sync primitives
+- **Defer closing resources** (DB connections, HTTP clients, file handles)
+
+### Domain Entities and Business Rules
+
+#### Core Entities:
+- **OrdemTransporte (OT)**: Unique identifier (e.g., OT-2028), status, priority score
+- **Viagem**: Execution instance of an OT, events timeline, progress tracking
+- **Veiculo**: License plate, model, type, operational status
+- **Motorista**: Name, work hours, journey limits
+- **Fazenda/Fabrica**: Origin/destination, coordinates, geofence definitions
+- **Evento**: Timeline entry with timestamp, type, coordinates, speed
+
+#### Critical Business Rules:
+
+1. **Work Hours Validation (Jornada)**:
+   - Maximum 12 hours per driver
+   - Validate before dispatch
+   - Calculate available balance
+   - Return error if limit exceeded
+
+2. **Geofencing**:
+   - Automatic entry/exit validation
+   - Alert on violations
+   - Support multiple geofences per trip (farm, factory)
+   - Track current geofence status
+
+3. **ETA Calculation**:
+   - Consider: distance, average speed, stop times (loading/unloading)
+   - Update in real-time with vehicle data
+   - Compare estimated vs actual, calculate deviations
+   - Handle edge cases (traffic, delays, route changes)
+
+4. **Validations**:
+   - OT availability in SGF system
+   - Valid work hours (12h limit)
+   - Queue alerts (scale, crane)
+   - Vehicle operational status
+
+5. **Priority Scoring**:
+   - Numerical score (e.g., 88)
+   - Consider urgency, distance, availability
+   - Use for trip scheduling optimization
+
+### Security and Resilience
+
+- Apply **input validation and sanitization** rigorously
+- Use secure defaults for **JWT, cookies**, and configuration
+- Isolate sensitive operations with clear **permission boundaries**
+- Implement **retries, exponential backoff, and timeouts** on all external calls:
+  - Creare Frotalog API
+  - agroLOG API
+  - SGF validation API
+  - GPS tracking services
+- Use **circuit breakers and rate limiting** for service protection
+- Implement **distributed rate-limiting** using Redis
+
+### External Integrations
+
+- **Creare Frotalog**: Vehicle operational status, automatic checkpoints
+- **agroLOG**: Arrival forecasts, event categorization
+- **SGF**: OT validation before dispatch
+- **GPS Services**: Real-time location tracking
+
+Handle integration failures gracefully with fallbacks and caching when appropriate.
+
+### Observability (OpenTelemetry)
+
+- Use **OpenTelemetry** for distributed tracing, metrics, and structured logging
+- Start and propagate tracing **spans** across all service boundaries
+- Always attach `context.Context` to spans, logs, and metric exports
+- Use **otel.Tracer** for spans and **otel.Meter** for metrics
+- Record important attributes:
+  - OT ID, vehicle plate, driver name
+  - Coordinates, speed, geofence status
+  - ETA deviations, validation results
+- Use **log correlation** by injecting trace IDs into structured logs
+- Export to **OpenTelemetry Collector**, **Jaeger**, or **Prometheus**
+
+### Monitoring and Alerting
+
+- Trace all **incoming requests** and propagate context
+- Use **middleware** to instrument HTTP and gRPC endpoints automatically
+- Monitor key metrics:
+  - Request latency (< 300ms target)
+  - Throughput (trips/minute)
+  - Error rate
+  - Resource usage
+- Alert on:
+  - High 5xx rates
+  - DB errors, Redis timeouts
+  - Geofence violations
+  - Critical ETA delays
+  - Work hours limit exceeded
+- Use **JSON-formatted logs** with appropriate levels (info, warn, error)
+- Include unique **request IDs** and trace context in all logs
+
+### Testing
+
+- Write **unit tests** using table-driven patterns
+- **Mock external interfaces** (Creare, agroLOG, SGF, GPS)
+- Separate **fast unit tests** from slower integration and E2E tests
+- Critical test cases:
+  - ETA calculation with various scenarios
+  - Work hours validation (12h limit)
+  - Geofence detection (entry/exit)
+  - Estimated vs actual comparison
+  - Trip prioritization
+  - External integration failures
+
+### Performance
+
+- Use **benchmarks** to track performance regressions
+- Minimize **allocations**; profile before optimizing
+- Implement caching for:
+  - Geofence definitions
+  - Configuration data
+  - Frequently accessed OTs
+- Use **async processing** for event handling
+- Batch updates when possible
+- Optimize database queries with proper indexing
+
+### Concurrency
+
+- Ensure safe use of **goroutines** for:
+  - Real-time location updates
+  - Event processing
+  - ETA recalculations
+- Guard shared state with channels or sync primitives
+- Implement **goroutine cancellation** using context propagation
+
+### Documentation
+
+- Document public functions with **GoDoc-style comments**
+- Provide concise **READMEs** for services
+- Maintain `CONTRIBUTING.md` and `ARCHITECTURE.md`
+- Document complex business rules (ETA calculation, geofencing logic)
+
+### Naming Conventions
+
+- Portuguese for domain entities: `Viagem`, `OrdemTransporte`, `CalcularETA`
+- English for technical code: functions, variables, interfaces
+- Descriptive names: `ValidarJornada`, `CalcularETAEstimado`, `DetectarEntradaGeocerca`
+
+---
+
+## Frontend Development (HTMX + Modern Web)
+
+### HTMX Usage
+
+- Use `hx-get`, `hx-post`, and other HTMX attributes to define server requests directly in HTML
+- Structure server responses to return only necessary HTML snippets for updates
+- Favor declarative attributes over JavaScript event handlers
+- Leverage `hx-trigger` to customize event handling:
+  - `hx-trigger="every 5s"` for auto-refresh in monitoring panels
+  - `hx-trigger="load"` for initial data loading
+  - `hx-trigger="change"` for filter updates
+- Utilize `hx-target` to specify where response content should be injected
+- Use `hx-swap` appropriately:
+  - `innerHTML` for content updates
+  - `outerHTML` for component replacement
+  - `afterbegin`/`beforeend` for list additions
+
+### Real-Time Updates
+
+- Implement auto-refresh for monitoring panels:tml
+  <div hx-get="/api/viagem/{{.ID}}/status" 
+       hx-trigger="every 5s" 
+       hx-target="#trip-status"
+       hx-swap="innerHTML">
+  - Provide manual refresh buttons with `hx-get` and `hx-trigger="click"`
+- Show loading states with `hx-indicator` attribute
+- Use `hx-push-url` to update browser URL without full page refresh
+
+### Error Handling and Validation
+
+- Implement **server-side validation** for all inputs
+- Return appropriate HTTP status codes (4xx for client errors, 5xx for server errors)
+- Display user-friendly error messages using HTMX:
+  <div hx-target="#error-message" hx-swap="innerHTML">
+    <!-- Error content -->
+  </div>
+  - Use `hx-confirm` for critical actions (trip dispatch, cancellations)
+
+### Performance Optimization
+
+- Minimize server response sizes by returning only essential HTML
+- Implement caching strategies for frequently requested endpoints:
+  - Geofence definitions
+  - Vehicle lists
+  - Farm/factory data
+- Optimize HTML rendering by precompiling reusable fragments
+- Use `hx-boost="true"` for progressive enhancement
+
+### UI Components
+
+#### Monitoring Panel (Tempo Real):
+- Progress bar with current stage
+- Metric cards (elapsed time, remaining time, average speed, remaining distance)
+- Current location with coordinates
+- Geofence status indicator
+- Auto-refresh toggle
+
+#### ETA Comparison Panel (Comparativo ETAs):
+- Side-by-side comparison (estimated vs actual)
+- Deviation indicators (green for ahead, red for delayed)
+- Status icons (✓ completed, ⏱️ pending)
+- Color-coded alerts
+
+#### Event Timeline:
+- Chronological event list
+- Event type icons
+- Timestamps and details
+- Expandable event details
+
+#### Trip Information:
+- Trip details card (farm, factory, vehicle, driver)
+- Time estimates card
+- Validations card (OT available, valid journey, queue alerts)
+- Additional info (cycle, journey, balance, priority)
+
+### Styling
+
+- Use Tailwind CSS or Bootstrap for UI components
+- Follow semantic color coding:
+  - Green: success, on-time, valid
+  - Yellow: warning, pending, queue alert
+  - Red: error, delayed, violation
+  - Blue: information, active
+- Ensure responsive design for mobile and desktop
+- Maintain consistent spacing and typography
+
+### Key Conventions
+
+1. Use consistent naming for HTMX attributes: `hx-get`, `hx-post`, `hx-target`
+2. Prioritize user experience: fast and intuitive interactions
+3. Maintain modular template structure
+4. Separate concerns: templates, partials, components
+
+---
+
+## General Development Guidelines
+
+### Code Quality
+
+- Follow consistent formatting: `go fmt`, `goimports`, `golangci-lint`
+- Write self-documenting code with clear variable names
+- Keep functions small and focused
+- Avoid deep nesting; use early returns
+
+### Version Control
+
+- Use semantic versioning for APIs
+- Write clear commit messages
+- Maintain detailed changelog
+- Document breaking changes
+
+### CI/CD
+
+- Automate testing, building, and deployment
+- Run linters and security checks
+- Ensure test coverage thresholds
+- Deploy with zero-downtime strategies
+
+### Checklist Before Committing
+
+- [ ] Code formatted and linted
+- [ ] Tests passing (unit + integration)
+- [ ] Errors handled explicitly
+- [ ] Structured logs with context
+- [ ] Traces instrumented
+- [ ] Documentation updated
+- [ ] Business rules validated
+- [ ] Performance considered
+- [ ] Security reviewed
+
+---
+
+## Domain-Specific Examples
+
+### ETA Calculation Function Signature:
+// CalcularETA calcula o tempo estimado de chegada baseado em distância,
+// velocidade média e tempos de parada.
+func CalcularETA(
+    ctx context.Context,
+    distancia float64,
+    velocidadeMedia float64,
+    tempoCarregamento time.Duration,
+    tempoDescarga time.Duration,
+) (time.Time, error)### Geofence Validation:
+// ValidarGeocerca verifica se o veículo está dentro da geocerca esperada
+// e retorna o status atual.
+func ValidarGeocerca(
+    ctx context.Context,
+    coordenadas Coordenadas,
+    geocercaID string,
+) (StatusGeocerca, error)### Work Hours Validation:
+// ValidarJornada verifica se o motorista respeita o limite de 12 horas
+// e retorna o saldo disponível.
+func ValidarJornada(
+    ctx context.Context,
+    motoristaID string,
+    duracaoViagem time.Duration,
+) (bool, time.Duration, error)---
+
+## References
+
+- HTMX Documentation: https://htmx.org/docs/
+- Go Best Practices: https://go.dev/doc/effective_go
+- OpenTelemetry Go: https://opentelemetry.io/docs/instrumentation/go/
+- Clean Architecture: https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html
