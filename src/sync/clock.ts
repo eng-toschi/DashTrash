@@ -5,7 +5,7 @@
  * pode estar com a data errada, e no exterior o fuso muda no meio da viagem.
  * O contador é persistido junto com o estado, na mesma transação da operação.
  */
-import type { Database } from '../db/driver.js';
+import type { Database } from '../db/driver';
 
 export interface DeviceState {
   readonly actorId: string;

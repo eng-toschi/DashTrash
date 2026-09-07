@@ -9,8 +9,8 @@
  * A conta é feita em BigInt: um gasto em JPY convertido para BRL estoura
  * Number.MAX_SAFE_INTEGER no produto intermediário com facilidade.
  */
-import { currencyExponent, money, type CurrencyCode, type Money } from './money.js';
-import { err, invariant, ok, type Result } from './result.js';
+import { currencyExponent, money, type CurrencyCode, type Money } from './money';
+import { err, invariant, ok, type Result } from './result';
 
 export const RATE_SCALE = 1_000_000;
 const RATE_SCALE_BIG = 1_000_000n;

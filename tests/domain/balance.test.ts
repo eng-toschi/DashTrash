@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { computeBalances, expenseInBase, totalSpent, type TripLedger } from '@/domain/balance.js';
-import { convertCents } from '@/domain/fx.js';
-import { sumCents } from '@/domain/money.js';
-import { DomainError } from '@/domain/result.js';
-import { ledgerArbitrary } from './_trips.js';
+import { computeBalances, expenseInBase, totalSpent, type TripLedger } from '@/domain/balance';
+import { convertCents } from '@/domain/fx';
+import { sumCents } from '@/domain/money';
+import { DomainError } from '@/domain/result';
+import { ledgerArbitrary } from './_trips';
 
 const BRL = (cents: number): { currency: string; fxRatePpm: number; amountCents: number } => ({
   currency: 'BRL',

@@ -8,12 +8,12 @@ import {
   recordSettlement,
   restoreExpense,
   updateExpense,
-} from '@/commands/index.js';
-import { listExpenses, listShares, listSubgroups, loadLedger } from '@/db/repositories.js';
-import { computeBalances, expenseInBase } from '@/domain/balance.js';
-import { sumCents } from '@/domain/money.js';
-import { pendingCount, pendingOps } from '@/sync/outbox.js';
-import { makeContext, openTestDb } from './_harness.js';
+} from '@/commands/index';
+import { listExpenses, listShares, listSubgroups, loadLedger } from '@/db/repositories';
+import { computeBalances, expenseInBase } from '@/domain/balance';
+import { sumCents } from '@/domain/money';
+import { pendingCount, pendingOps } from '@/sync/outbox';
+import { makeContext, openTestDb } from './_harness';
 
 function viagemComQuatro() {
   const db = openTestDb();

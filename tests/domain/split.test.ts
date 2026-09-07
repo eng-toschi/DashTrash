@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { computeShares } from '@/domain/split.js';
-import { sumCents } from '@/domain/money.js';
-import { DomainError } from '@/domain/result.js';
+import { computeShares } from '@/domain/split';
+import { sumCents } from '@/domain/money';
+import { DomainError } from '@/domain/result';
 
 describe('divisão igual', () => {
   it('divide entre todos', () => {

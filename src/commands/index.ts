@@ -11,16 +11,16 @@
  * O passo 3 é o coração do offline: ou a despesa existe aqui e está na fila
  * para os outros, ou não aconteceu nada. Nunca meio caminho.
  */
-import type { Database } from '../db/driver.js';
+import type { Database } from '../db/driver';
 import {
   getTrip,
   listActiveParticipants,
   listShares,
   type ParticipantRow,
-} from '../db/repositories.js';
-import { computeShares, type Split, type SplitError } from '../domain/split.js';
-import { err, ok, type Result } from '../domain/result.js';
-import { enqueue, type OpEntity } from '../sync/outbox.js';
+} from '../db/repositories';
+import { computeShares, type Split, type SplitError } from '../domain/split';
+import { err, ok, type Result } from '../domain/result';
+import { enqueue, type OpEntity } from '../sync/outbox';
 
 export interface CommandContext {
   newId(): string;

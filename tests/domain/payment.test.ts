@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { IOF_DEFAULT_PPM, paidAmount, suggestIofPpm, PAYMENT_METHODS } from '@/domain/payment.js';
-import { computeBalances, expenseInBase, totalIof, type TripLedger } from '@/domain/balance.js';
-import { sumCents } from '@/domain/money.js';
-import { DomainError } from '@/domain/result.js';
-import { ledgerArbitrary } from './_trips.js';
+import { IOF_DEFAULT_PPM, paidAmount, suggestIofPpm, PAYMENT_METHODS } from '@/domain/payment';
+import { computeBalances, expenseInBase, totalIof, type TripLedger } from '@/domain/balance';
+import { sumCents } from '@/domain/money';
+import { DomainError } from '@/domain/result';
+import { ledgerArbitrary } from './_trips';
 
 describe('IOF', () => {
   it('decompõe o custo real de um gasto no cartão', () => {

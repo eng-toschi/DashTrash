@@ -4,3 +4,5 @@ dist/
 .DS_Store
 *.log
 design/rachei-telas.html
+.expo/
+.expo-export/

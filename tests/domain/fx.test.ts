@@ -8,9 +8,9 @@ import {
   parseRateInput,
   RATE_SCALE,
   selectRateForDate,
-} from '@/domain/fx.js';
-import { currencyExponent, money } from '@/domain/money.js';
-import { DomainError } from '@/domain/result.js';
+} from '@/domain/fx';
+import { currencyExponent, money } from '@/domain/money';
+import { DomainError } from '@/domain/result';
 
 describe('convertCents', () => {
   it('converte iene (0 casas) para real (2 casas)', () => {

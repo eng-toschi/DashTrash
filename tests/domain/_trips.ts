@@ -1,8 +1,8 @@
 /** Gerador de viagens válidas para os testes de propriedade. */
 import fc from 'fast-check';
-import { allocate } from '@/domain/money.js';
-import type { TripExpense, TripLedger, TripSettlement } from '@/domain/balance.js';
-import type { Share } from '@/domain/split.js';
+import { allocate } from '@/domain/money';
+import type { TripExpense, TripLedger, TripSettlement } from '@/domain/balance';
+import type { Share } from '@/domain/split';
 
 /** Moeda-base BRL; taxas plausíveis de uma viagem real. */
 export const RATES: Readonly<Record<string, number>> = {

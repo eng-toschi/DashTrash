@@ -2,6 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "ESNext.Intl"],
+    "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "types": ["vitest/globals", "node"],
@@ -19,5 +20,5 @@
     "baseUrl": ".",
     "paths": { "@/*": ["src/*"] }
   },
-  "include": ["src", "tests", "*.config.ts", "eslint.config.js"]
+  "include": ["src", "app", "tests", "*.config.ts", "eslint.config.mjs"]
 }

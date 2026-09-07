@@ -10,9 +10,9 @@
  * usuário pode corrigir por viagem e por despesa, e a data da referência fica
  * registrada em `IOF_REFERENCE`.
  */
-import { convertCentsWithSurcharge } from './fx.js';
-import type { CurrencyCode } from './money.js';
-import { invariant } from './result.js';
+import { convertCentsWithSurcharge } from './fx';
+import type { CurrencyCode } from './money';
+import { invariant } from './result';
 
 export type PaymentMethod =
   /** Cartão de crédito internacional. */

@@ -5,8 +5,8 @@
  * cabeçalho do arquivo — não precisa de tabela de controle e não some se alguém
  * apagar dados.
  */
-import type { Database } from './driver.js';
-import { LATEST_VERSION, MIGRATIONS, type Migration } from './migrations.js';
+import type { Database } from './driver';
+import { LATEST_VERSION, MIGRATIONS, type Migration } from './migrations';
 
 export function currentVersion(db: Database): number {
   const row = db.get<{ user_version: number }>('PRAGMA user_version');

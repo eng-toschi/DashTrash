@@ -3,13 +3,13 @@ import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  { ignores: ['node_modules', 'coverage', 'dist'] },
+  { ignores: ['node_modules', 'coverage', 'dist', '.expo', '.expo-export', 'design'] },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
     languageOptions: {
       parserOptions: {
-        projectService: { allowDefaultProject: ['eslint.config.js'] },
+        projectService: { allowDefaultProject: ['eslint.config.mjs', 'babel.config.js', 'metro.config.js'] },
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -30,5 +30,13 @@ export default defineConfig(
   {
     files: ['tests/**/*.ts'],
     rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
+  },
+  {
+    // babel.config.js e metro.config.js são CommonJS exigidos pelo Metro;
+    // as regras de módulo ESM não se aplicam a eles.
+    files: ['babel.config.js', 'metro.config.js'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: { sourceType: 'commonjs', globals: { module: 'writable', require: 'readonly', __dirname: 'readonly' } },
+    rules: { '@typescript-eslint/no-require-imports': 'off', 'no-undef': 'off' },
   },
 );

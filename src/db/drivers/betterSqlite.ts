@@ -3,7 +3,7 @@
  * O app usa `expo-sqlite`, com um adaptador irmão deste (Fase 3).
  */
 import DatabaseConstructor from 'better-sqlite3';
-import { withTransactions, type Database, type SqlParams } from '../driver.js';
+import { withTransactions, type Database, type SqlParams } from '../driver';
 
 export function openBetterSqlite(filename = ':memory:'): Database {
   const handle = new DatabaseConstructor(filename);

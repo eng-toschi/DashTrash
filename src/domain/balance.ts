@@ -14,10 +14,10 @@
  * entre as pessoas, usando as partes originais como peso. Assim a soma das partes
  * em moeda-base é, por construção, igual ao total em moeda-base.
  */
-import { convertCents, convertCentsWithSurcharge } from './fx.js';
-import { allocate, sumCents, type CurrencyCode } from './money.js';
-import { invariant } from './result.js';
-import type { Share } from './split.js';
+import { convertCents, convertCentsWithSurcharge } from './fx';
+import { allocate, sumCents, type CurrencyCode } from './money';
+import { invariant } from './result';
+import type { Share } from './split';
 
 export interface TripExpense {
   readonly id: string;

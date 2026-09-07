@@ -5,9 +5,9 @@
  * o domínio decidir saldos e fechamento — é o que mantém a matemática testável
  * sem banco nenhum.
  */
-import type { TripExpense, TripLedger, TripSettlement } from '../domain/balance.js';
-import type { Share } from '../domain/split.js';
-import type { Database } from './driver.js';
+import type { TripExpense, TripLedger, TripSettlement } from '../domain/balance';
+import type { Share } from '../domain/split';
+import type { Database } from './driver';
 
 export interface TripRow {
   id: string;
@@ -151,6 +151,36 @@ export function loadLedger(db: Database, tripId: string): TripLedger {
   }));
 
   return { baseCurrency: trip.base_currency, participantIds, expenses, settlements };
+}
+
+/**
+ * Qual participante é "você" nesta viagem.
+ *
+ * Enquanto não existem contas (Fase 6), a identidade é a do próprio aparelho:
+ * quem cria a viagem entra com o `actor_id` do dispositivo. Quando o login
+ * chegar, `linkParticipantToUser` troca isso pelo id de verdade sem migração.
+ */
+export function findMe(db: Database, tripId: string): ParticipantRow | undefined {
+  return db.get<ParticipantRow>(
+    `SELECT p.* FROM participants p
+     JOIN device_state d ON d.id = 1 AND d.actor_id = p.user_id
+     WHERE p.trip_id = ? AND p.deleted_at IS NULL AND p.merged_into IS NULL`,
+    [tripId],
+  );
+}
+
+export function localActorId(db: Database): string {
+  return db.get<{ actor_id: string }>('SELECT actor_id FROM device_state WHERE id = 1')?.actor_id ?? '';
+}
+
+/** Cotações em cache para um par de moedas, para escolher a do dia do gasto (§8). */
+export function listRates(db: Database, base: string, quote: string): { asOf: string; ratePpm: number }[] {
+  return db
+    .all<{ as_of: string; rate_ppm: number }>(
+      'SELECT as_of, rate_ppm FROM fx_rates WHERE base = ? AND quote = ? ORDER BY as_of DESC',
+      [base, quote],
+    )
+    .map((row) => ({ asOf: row.as_of, ratePpm: row.rate_ppm }));
 }
 
 export interface SubgroupRow {

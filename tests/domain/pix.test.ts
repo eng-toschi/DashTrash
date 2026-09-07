@@ -9,7 +9,7 @@ import {
   parseEmvFields,
   parsePixKey,
   type PixKey,
-} from '@/domain/pix.js';
+} from '@/domain/pix';
 
 const field = (payload: string, id: string): string | undefined =>
   parseEmvFields(payload).find((f) => f.id === id)?.value;

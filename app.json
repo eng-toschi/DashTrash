@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Rachei",
+    "slug": "rachei",
+    "scheme": "rachei",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "app.rachei.mobile",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Para fotografar recibos e ler o QR do convite.",
+        "NSPhotoLibraryUsageDescription": "Para anexar a foto de um recibo a uma despesa."
+      }
+    },
+    "android": {
+      "package": "app.rachei.mobile",
+      "edgeToEdgeEnabled": true,
+      "permissions": ["CAMERA"]
+    },
+    "plugins": ["expo-router"],
+    "experiments": { "tsconfigPaths": true }
+  }
+}

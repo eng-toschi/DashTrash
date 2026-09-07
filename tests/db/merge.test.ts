@@ -5,12 +5,12 @@ import {
   createTrip,
   mergeParticipants,
   recordSettlement,
-} from '@/commands/index.js';
-import { listParticipants, loadLedger } from '@/db/repositories.js';
-import { computeBalances } from '@/domain/balance.js';
-import { sumCents } from '@/domain/money.js';
-import { simplifyDebts } from '@/domain/settle.js';
-import { makeContext, openTestDb } from './_harness.js';
+} from '@/commands/index';
+import { listParticipants, loadLedger } from '@/db/repositories';
+import { computeBalances } from '@/domain/balance';
+import { sumCents } from '@/domain/money';
+import { simplifyDebts } from '@/domain/settle';
+import { makeContext, openTestDb } from './_harness';
 
 function cenario() {
   const db = openTestDb();

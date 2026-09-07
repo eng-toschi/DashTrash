@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { computeBalances, type TripLedger } from '@/domain/balance.js';
-import { sumCents } from '@/domain/money.js';
-import { DomainError } from '@/domain/result.js';
-import { applyTransfers, computeRealDebts, paymentOptions, simplifyDebts } from '@/domain/settle.js';
-import { ledgerArbitrary } from './_trips.js';
+import { computeBalances, type TripLedger } from '@/domain/balance';
+import { sumCents } from '@/domain/money';
+import { DomainError } from '@/domain/result';
+import { applyTransfers, computeRealDebts, paymentOptions, simplifyDebts } from '@/domain/settle';
+import { ledgerArbitrary } from './_trips';
 
 const zeroed = (ledger: TripLedger, transfers: readonly { fromId: string; toId: string; cents: number }[]): boolean =>
   applyTransfers(computeBalances(ledger).balances, transfers).every((b) => b.cents === 0);

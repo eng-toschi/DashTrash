@@ -121,3 +121,30 @@ contrário. Há teste que sabota a segunda escrita e confirma que nada sobra.
 
 Consequência de projeto: o outbox mora no SQLite, não em memória, e a UI nunca espera a rede
 para dar a despesa como salva.
+
+## 2026-09-07 — Imports sem extensão, para o Metro conseguir resolver
+
+O projeto usava `import ... from './money.js'`, que o Node ESM exige. O Metro, empacotador do
+React Native, não faz a reescrita de `.js` para `.ts` e quebraria em todos os arquivos. Os
+imports relativos passaram a ser sem extensão (`moduleResolution: "bundler"`), que funciona no
+Metro, no Vitest e no TypeScript. O `"type": "module"` saiu do `package.json` pelo mesmo motivo —
+`babel.config.js` e `metro.config.js` precisam ser CommonJS.
+
+## 2026-09-07 — "Você" é o aparelho, enquanto não existe login
+
+A Fase 3 não tem contas. Quem cria a viagem entra como participante com `user_id` igual ao
+`actor_id` do dispositivo, e `findMe()` acha essa linha. Quando o login chegar (Fase 6),
+`linkParticipantToUser` troca esse valor pelo id real — sem migração de dados e sem duplicar
+ninguém.
+
+## 2026-09-07 — O convite aparece desabilitado, com o motivo
+
+A tela de participantes mostra que o convite por link e QR chega junto com a sincronização, em
+vez de exibir um botão que não faz nada. Prometer o que ainda não existe é pior que mostrar o
+limite: quem usa precisa saber que, por ora, a viagem vive só naquele celular.
+
+## 2026-09-07 — Tema segue o sistema, sem seletor no app
+
+Claro e escuro saem dos mesmos tokens semânticos e acompanham a configuração do aparelho. Um
+seletor próprio seria mais uma linha em Ajustes para resolver algo que o sistema operacional já
+resolve.

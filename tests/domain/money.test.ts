@@ -13,8 +13,8 @@ import {
   subtract,
   negate,
   zero,
-} from '@/domain/money.js';
-import { DomainError } from '@/domain/result.js';
+} from '@/domain/money';
+import { DomainError } from '@/domain/result';
 
 const ids = (n: number): string[] => Array.from({ length: n }, (_, i) => `p${String(i).padStart(2, '0')}`);
 

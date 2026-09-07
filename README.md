@@ -12,7 +12,7 @@ App de divisão de despesas de viagem para iPhone e Android. Em construção.
 | 0 | Base do projeto, TypeScript strict, lint, testes | ✅ |
 | 1 | `src/domain/` — dinheiro, divisão, câmbio, saldos, fechamento | ✅ |
 | 2 | SQLite, migrações, repositórios e comandos com outbox | ✅ |
-| 3 | App Expo: telas, offline completo | pendente |
+| 3 | App Expo: design system e telas, 100% offline | ✅ |
 | 4–8 | Multi-moeda na UI, fechamento, sync, distribuição | pendente |
 
 A Fase 1 é lógica pura e não depende de React Native — o Expo entra na Fase 3
@@ -23,8 +23,8 @@ A Fase 1 é lógica pura e não depende de React Native — o Expo entra na Fase
 ```bash
 npm install
 npm run verify     # typecheck + lint + testes  <- portão de qualidade
-npm test           # só os testes
-npm run test:watch
+npm start          # abre o app no Expo (celular ou emulador)
+npm run bundle     # empacota iOS e Android — prova que compila, sem emulador
 npx vitest run --coverage
 ```
 
@@ -50,4 +50,10 @@ npx vitest run --coverage
 - **`commands/`** — criar e editar viagem, participantes, despesas e acertos; vincular convite;
   mesclar duplicatas.
 
-As telas desenhadas estão em `design/`.
+O app em si vive em `app/` (rotas do Expo Router) e `src/ui/` (design system).
+As telas desenhadas que serviram de referência estão em `design/`.
+
+**Estado da Fase 3:** o app compila e empacota para iOS e Android, e o fluxo completo
+(criar viagem, lançar em três moedas, subgrupo, fechar e zerar) é coberto por teste na
+mesma camada que as telas usam. Ele ainda não foi executado num aparelho — falta rodar
+`npm start` num celular ou emulador para a validação visual.

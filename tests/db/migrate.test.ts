@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { openBetterSqlite } from '@/db/drivers/betterSqlite.js';
-import { currentVersion, migrate } from '@/db/migrate.js';
-import { LATEST_VERSION } from '@/db/migrations.js';
-import { computeBalances, loadLedger } from '@/index.js';
-import { sumCents } from '@/domain/money.js';
-import { openTestDbAtVersion } from './_harness.js';
+import { openBetterSqlite } from '@/db/drivers/betterSqlite';
+import { currentVersion, migrate } from '@/db/migrate';
+import { LATEST_VERSION } from '@/db/migrations';
+import { computeBalances, loadLedger } from '@/index';
+import { sumCents } from '@/domain/money';
+import { openTestDbAtVersion } from './_harness';
 
 describe('migrações', () => {
   it('leva um banco vazio até a versão mais recente', () => {

@@ -6,8 +6,8 @@
  * rede no meio da viagem. É o que permite fechar as contas no aeroporto, sem
  * sinal, e cada um sair com o pagamento pronto para colar no banco.
  */
-import { toDecimalString } from './money.js';
-import { err, invariant, ok, type Result } from './result.js';
+import { toDecimalString } from './money';
+import { err, invariant, ok, type Result } from './result';
 
 export type PixKeyKind = 'cpf' | 'cnpj' | 'email' | 'phone' | 'random';
 

@@ -5,7 +5,7 @@
  * da moeda. Nenhum `number` fracionário entra ou sai daqui. O único ponto do app
  * onde existe divisão é `allocate`, e ela é feita em BigInt para nunca perder centavo.
  */
-import { DomainError, err, invariant, ok, type Result } from './result.js';
+import { DomainError, err, invariant, ok, type Result } from './result';
 
 export type CurrencyCode = string;
 

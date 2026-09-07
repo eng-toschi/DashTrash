@@ -1,8 +1,8 @@
 /** Banco em memória e contexto determinístico para os testes da camada de dados. */
-import { openBetterSqlite } from '@/db/drivers/betterSqlite.js';
-import { initialize, migrate } from '@/db/migrate.js';
-import type { Database } from '@/db/driver.js';
-import type { CommandContext } from '@/commands/index.js';
+import { openBetterSqlite } from '@/db/drivers/betterSqlite';
+import { initialize, migrate } from '@/db/migrate';
+import type { Database } from '@/db/driver';
+import type { CommandContext } from '@/commands/index';
 
 export function openTestDb(actorId = 'aparelho-a'): Database {
   return initialize(openBetterSqlite(), actorId);

@@ -5,8 +5,8 @@
  * valor exato. Porcentagem, cotas e divisão por item foram cortados — ver §2 do
  * spec antes de adicionar qualquer variante aqui.
  */
-import { allocateEqually, sumCents, type Allocation } from './money.js';
-import { err, invariant, ok, type Result } from './result.js';
+import { allocateEqually, sumCents, type Allocation } from './money';
+import { err, invariant, ok, type Result } from './result';
 
 export type Split =
   | { readonly type: 'equal'; readonly participantIds: readonly string[] }

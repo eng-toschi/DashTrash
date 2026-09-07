@@ -8,8 +8,8 @@
  * O outbox mora no SQLite, não em memória: matar o app no meio do envio não
  * perde nem duplica operação.
  */
-import type { Database } from '../db/driver.js';
-import { tick } from './clock.js';
+import type { Database } from '../db/driver';
+import { tick } from './clock';
 
 export type OpEntity = 'trip' | 'participant' | 'expense' | 'settlement' | 'subgroup';
 export type OpKind = 'upsert' | 'delete';
