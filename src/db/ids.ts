@@ -22,13 +22,29 @@ interface RandomSource {
  * ele é desprezível. Ela não serve para segredo nenhum: token de convite
  * (Fase 6) precisa de fonte criptográfica de verdade, gerada no servidor.
  */
+function randomSource(): RandomSource | undefined {
+  // Nem o acesso pode escapar: `typeof` sozinho já é seguro para identificador
+  // não declarado, e o try/catch cobre qualquer motor que trate `globalThis`
+  // de forma exótica. Aqui não pode sobrar caminho que lance exceção.
+  try {
+    if (typeof globalThis === 'undefined') return undefined;
+    return (globalThis as { crypto?: RandomSource }).crypto;
+  } catch {
+    return undefined;
+  }
+}
+
 function randomBytes(count: number): Uint8Array {
   const bytes = new Uint8Array(count);
-  const source = (globalThis as { crypto?: RandomSource }).crypto;
 
-  if (typeof source?.getRandomValues === 'function') {
-    source.getRandomValues(bytes);
-    return bytes;
+  try {
+    const source = randomSource();
+    if (typeof source?.getRandomValues === 'function') {
+      source.getRandomValues(bytes);
+      return bytes;
+    }
+  } catch {
+    // Cai na reserva abaixo.
   }
 
   for (let i = 0; i < count; i += 1) bytes[i] = Math.floor(Math.random() * 256);

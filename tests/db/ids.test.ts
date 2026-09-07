@@ -29,6 +29,29 @@ describe('uuidV7', () => {
     expect(ids.size).toBe(2000);
   });
 
+  it('funciona mesmo se ler `crypto` lançar exceção', () => {
+    // Blindagem: nenhum caminho daqui pode derrubar o app na primeira tela.
+    Object.defineProperty(globalThis, 'crypto', {
+      configurable: true,
+      get() {
+        throw new Error('Property crypto does not exist');
+      },
+    });
+    expect(() => uuidV7()).not.toThrow();
+  });
+
+  it('funciona se `getRandomValues` existir mas falhar', () => {
+    Object.defineProperty(globalThis, 'crypto', {
+      configurable: true,
+      value: {
+        getRandomValues: () => {
+          throw new Error('sem entropia');
+        },
+      },
+    });
+    expect(() => uuidV7()).not.toThrow();
+  });
+
   it('FUNCIONA SEM `crypto` GLOBAL, como no Hermes', () => {
     // O motor do React Native não tem `crypto`. Assumir que tem derrubou o app
     // na primeira execução em aparelho real; este teste guarda a correção.
