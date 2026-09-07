@@ -247,13 +247,46 @@ export function toDecimalString(cents: number, exponent: number): string {
   return `${sign}${digits.slice(0, -exponent)}.${digits.slice(-exponent)}`;
 }
 
-/** Formata para exibição. O valor vai ao Intl como string — nunca como float. */
+/**
+ * O `Intl` aceita string neste motor?
+ *
+ * Passar a string decimal exata é o que mantém a promessa de nenhum valor
+ * monetário passar por float, nem ao exibir. Mas o Hermes (motor do React
+ * Native) tem implementação própria de `Intl` e pode não suportar a sobrecarga
+ * de string do Intl.NumberFormat V3 — e uma exceção aqui quebraria toda tela
+ * que mostra dinheiro. A sondagem roda uma vez e escolhe o caminho seguro.
+ */
+const INTL_ACCEPTS_STRING = ((): boolean => {
+  try {
+    const probe = new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format('1.05');
+    return probe.includes('1.05');
+  } catch {
+    return false;
+  }
+})();
+
+/**
+ * Formata para exibição.
+ *
+ * Onde o motor aceita, o valor vai ao `Intl` como string decimal exata. Onde não
+ * aceita, cai para `number` — o que só perde precisão acima de ~90 trilhões de
+ * centavos, faixa em que uma divisão de conta de viagem não chega.
+ */
 export function formatMoney(value: Money, locale: string): string {
   const exponent = currencyExponent(value.currency);
-  return new Intl.NumberFormat(locale, {
+  const formatter = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: value.currency,
     minimumFractionDigits: exponent,
     maximumFractionDigits: exponent,
-  }).format(toDecimalString(value.cents, exponent));
+  });
+
+  const decimal = toDecimalString(value.cents, exponent);
+  return INTL_ACCEPTS_STRING ? formatter.format(decimal) : formatter.format(Number(decimal));
 }
+
+/** Exposto só para o teste conferir qual caminho o motor tomou. */
+export const intlAcceptsString = INTL_ACCEPTS_STRING;

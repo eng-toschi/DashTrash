@@ -5,6 +5,7 @@ import {
   allocateEqually,
   currencyExponent,
   formatMoney,
+  intlAcceptsString,
   money,
   parseMoneyInput,
   sumCents,
@@ -137,9 +138,21 @@ describe('moedas com expoente diferente de 2', () => {
   });
 
   it('formata valores acima da precisão do float sem perder dígito', () => {
+    // Só vale onde o motor aceita string no Intl; no Hermes pode cair para
+    // number, e aí a precisão termina antes — faixa que uma conta de viagem
+    // não alcança de qualquer forma.
+    if (!intlAcceptsString) return;
     expect(formatMoney(money(1_234_567_890_123_456, 'BRL'), 'pt-BR')).toContain(
       '12.345.678.901.234,56',
     );
+  });
+
+  it('formata valores de viagem de verdade nos dois caminhos do Intl', () => {
+    // Este é o que precisa valer em qualquer motor: se quebrar, toda tela que
+    // mostra dinheiro quebra junto.
+    expect(formatMoney(money(190_240, 'BRL'), 'pt-BR')).toContain('1.902,40');
+    expect(formatMoney(money(0, 'BRL'), 'pt-BR')).toContain('0,00');
+    expect(formatMoney(money(-4500, 'BRL'), 'pt-BR')).toContain('45,00');
   });
 });
 
