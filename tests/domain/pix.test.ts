@@ -8,6 +8,8 @@ import {
   maskPixKey,
   parseEmvFields,
   parsePixKey,
+  stripDiacritics,
+  stripDiacriticsFallback,
   type PixKey,
 } from '@/domain/pix';
 
@@ -85,6 +87,29 @@ describe('parsePixKey', () => {
     expect(maskPixKey({ kind: 'email', value: 'marina@exemplo.com' })).toBe('ma***@exemplo.com');
     expect(maskPixKey({ kind: 'cnpj', value: '11222333000181' })).toBe('**.222.333/****-**');
     expect(maskPixKey({ kind: 'random', value: 'b1f0a2c4-7d3e-4a19-9c85-2e6f0d1a3b47' })).toBe('b1f0a2c4…3b47');
+  });
+});
+
+describe('remoção de acento sem normalização Unicode', () => {
+  it('o caminho do aparelho dá o mesmo resultado do caminho do Node', () => {
+    // O Hermes não implementa `String.prototype.normalize` com decomposição.
+    // Sem esta reserva, o BR Code sairia com acento e o banco recusaria.
+    const nomes = [
+      'Ana Gonçalves',
+      'São Paulo',
+      'José Antônio Ürsula',
+      'Ana Núñez',
+      'Içara-Guaçú',
+      'Sem acento nenhum',
+    ];
+    for (const nome of nomes) {
+      expect(stripDiacriticsFallback(nome)).toBe(stripDiacritics(nome));
+    }
+  });
+
+  it('preserva maiúsculas e o que não tem acento', () => {
+    expect(stripDiacriticsFallback('ÁGUA e Ação')).toBe('AGUA e Acao');
+    expect(stripDiacriticsFallback('12,50 - R$')).toBe('12,50 - R$');
   });
 });
 

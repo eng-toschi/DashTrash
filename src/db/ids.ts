@@ -6,9 +6,32 @@
  * lugares: o outbox drena na ordem em que as coisas aconteceram, e o desempate
  * de centavos do `allocate` (lexicográfico por id) fica estável e previsível.
  */
+interface RandomSource {
+  getRandomValues?: (array: Uint8Array) => unknown;
+}
+
+/**
+ * Fonte de aleatoriedade.
+ *
+ * `crypto` é global no Node e no navegador, mas NÃO no Hermes, o motor do
+ * React Native — assumir que existe derruba o app na primeira tela. O app
+ * instala a implementação real do aparelho em `state/randomPolyfill`; este
+ * caminho de reserva existe para nunca depender dessa ordem de carregamento.
+ *
+ * A reserva serve para IDENTIFICADORES LOCAIS, onde colisão é o único risco e
+ * ele é desprezível. Ela não serve para segredo nenhum: token de convite
+ * (Fase 6) precisa de fonte criptográfica de verdade, gerada no servidor.
+ */
 function randomBytes(count: number): Uint8Array {
   const bytes = new Uint8Array(count);
-  crypto.getRandomValues(bytes);
+  const source = (globalThis as { crypto?: RandomSource }).crypto;
+
+  if (typeof source?.getRandomValues === 'function') {
+    source.getRandomValues(bytes);
+    return bytes;
+  }
+
+  for (let i = 0; i < count; i += 1) bytes[i] = Math.floor(Math.random() * 256);
   return bytes;
 }
 

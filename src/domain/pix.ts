@@ -136,11 +136,57 @@ export function crc16(input: string): number {
   return crc & 0xffff;
 }
 
+/**
+ * O motor implementa normalização Unicode?
+ *
+ * O Hermes não implementa `String.prototype.normalize` com decomposição, e o
+ * caminho baseado nela devolveria o nome com acento — que o padrão do BR Code
+ * não aceita, gerando um código que o banco recusa. A sondagem roda uma vez.
+ */
+const HAS_UNICODE_NORMALIZE = ((): boolean => {
+  try {
+    return 'é'.normalize('NFD').length === 2;
+  } catch {
+    return false;
+  }
+})();
+
+/** Mapa de reserva, cobrindo o que aparece em nome e cidade no Brasil. */
+const DIACRITICS: Readonly<Record<string, string>> = {
+  á: 'a', à: 'a', ã: 'a', â: 'a', ä: 'a',
+  é: 'e', è: 'e', ê: 'e', ë: 'e',
+  í: 'i', ì: 'i', î: 'i', ï: 'i',
+  ó: 'o', ò: 'o', õ: 'o', ô: 'o', ö: 'o',
+  ú: 'u', ù: 'u', û: 'u', ü: 'u',
+  ç: 'c', ñ: 'n', ý: 'y',
+};
+
+/**
+ * Caminho que roda no aparelho, sem normalização Unicode. Exportado para o
+ * teste poder exercitá-lo mesmo num motor que tenha `normalize`.
+ */
+export function stripDiacriticsFallback(text: string): string {
+  let result = '';
+  for (const char of text) {
+    const lower = char.toLowerCase();
+    const plain = DIACRITICS[lower];
+    if (plain === undefined) {
+      result += char;
+    } else {
+      result += char === lower ? plain : plain.toUpperCase();
+    }
+  }
+  return result;
+}
+
+export function stripDiacritics(text: string): string {
+  if (HAS_UNICODE_NORMALIZE) return text.normalize('NFD').replace(/[\u0300-\u036f]/gu, '');
+  return stripDiacriticsFallback(text);
+}
+
 /** Remove acentos e caracteres que o padrão não aceita, e corta no limite. */
 function sanitize(text: string, maxLength: number): string {
-  const stripped = text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/gu, '')
+  const stripped = stripDiacritics(text)
     .replace(/[^A-Za-z0-9 .-]/gu, '')
     .replace(/\s+/gu, ' ')
     .trim();

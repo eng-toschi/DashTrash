@@ -1,3 +1,8 @@
+import { installRandomSource } from '@/state/randomPolyfill';
+
+// Antes de qualquer import que possa gerar um id: o Hermes não tem `crypto`.
+installRandomSource();
+
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';

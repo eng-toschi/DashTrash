@@ -148,3 +148,23 @@ limite: quem usa precisa saber que, por ora, a viagem vive só naquele celular.
 Claro e escuro saem dos mesmos tokens semânticos e acompanham a configuração do aparelho. Um
 seletor próprio seria mais uma linha em Ajustes para resolver algo que o sistema operacional já
 resolve.
+
+## 2026-09-07 — O Hermes não é o Node: `crypto` e `normalize` não existem lá
+
+A primeira execução num aparelho real derrubou o app em `crypto.getRandomValues`. O motor do
+React Native não traz o objeto `crypto` global que o Node e o navegador trazem, e os testes
+passavam justamente porque rodam no Node.
+
+A varredura que fiz em seguida achou um segundo caso, ainda não disparado: o Hermes também não
+implementa `String.prototype.normalize` com decomposição, que era como o BR Code do Pix tirava o
+acento do nome. Teria gerado um código que o banco recusa — pior que um crash, porque falha
+calado.
+
+Padrão adotado para os dois: **sondar a capacidade uma vez e ter um caminho de reserva**, em vez
+de assumir a plataforma. Os ids usam `crypto` quando existe (e o app instala a implementação do
+aparelho via `expo-crypto` antes de tudo); sem ela, caem para `Math.random`, o que é aceitável
+para identificador local e está marcado como INACEITÁVEL para segredo — token de convite
+(Fase 6) precisa de fonte criptográfica de verdade, no servidor.
+
+Lição para as próximas fases: toda API de plataforma usada no domínio precisa de teste que
+exercite o caminho sem ela. `Intl` já tinha; `crypto` e `normalize` agora também.
