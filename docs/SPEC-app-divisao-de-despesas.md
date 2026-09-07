@@ -1,105 +1,111 @@
 # Spec de Build — App de Divisão de Despesas de Viagem
 
-> **Como usar este documento:** ele é um *briefing de execução único*. Entregue o arquivo inteiro
-> para um agente de código (Claude Code, Cursor, Codex) com a instrução:
-> *"Implemente este spec por completo, na ordem das Fases da §16. Não peça confirmação em
-> decisões já resolvidas aqui. Ao final de cada fase, rode os testes e o typecheck e só avance
-> se estiverem verdes. Onde o spec não decidir algo, escolha a opção mais simples e documente
-> em `docs/DECISIONS.md`."*
+> **Como usar este documento:** é um *briefing de execução único*. Entregue o arquivo inteiro
+> para um agente de código com a instrução:
+> *"Implemente este spec por completo, na ordem das Fases da §14. Não peça confirmação em
+> decisões já resolvidas aqui. Ao final de cada fase, rode `npm run verify` e só avance se
+> estiver verde. Onde o spec não decidir algo, escolha a opção mais simples e registre em
+> `docs/DECISIONS.md`."*
 
 ---
 
-## 1. Visão geral
+## 1. O que é
 
-**Produto:** app mobile (iOS + Android) para grupos dividirem despesas durante viagens, com
-suporte a múltiplas moedas, múltiplos pagadores, divisão por item e acerto de contas simplificado.
+App mobile (iOS + Android) para um grupo dividir despesas durante viagens **internacionais**.
+Cada pessoa instala no próprio celular, lança suas despesas e tudo sincroniza entre os
+dispositivos. Uso privado — entre amigos, sem publicação nas lojas.
 
-**Nome de trabalho:** `Rachei` (substituível — usar constante `APP_NAME` em `src/config/app.ts`).
+**Nome de trabalho:** `Rachei` (constante `APP_NAME` em `src/config/app.ts`).
 
-**Princípios não negociáveis:**
+### As quatro decisões que definem o escopo
 
-1. **Offline-first de verdade.** Todo fluxo (criar viagem, lançar despesa, ver saldo, acertar
-   contas) funciona sem rede, em avião ou roaming. A rede é um detalhe de sincronização.
-2. **Dinheiro é inteiro.** Nenhum valor monetário é `float` em nenhum lugar — nem em memória,
-   nem no banco, nem no JSON de sync. Sempre inteiros na menor unidade da moeda (centavos).
-3. **A soma sempre fecha.** A soma das partes de uma despesa é *exatamente* igual ao total, e a
-   soma dos saldos do grupo é *exatamente* zero. Isso é um invariante testado, não uma
-   expectativa.
-4. **Nada é destrutivo.** Exclusões são *tombstones*. Nenhum dado sai do dispositivo sem
-   possibilidade de auditoria/undo.
-5. **Menos toques.** Lançar uma despesa comum (valor + quem pagou + divisão igual) deve custar
-   no máximo 4 toques a partir da home.
+| Decisão | Consequência técnica |
+|---|---|
+| **Todos instalam e sincronizam** | Backend real, contas, convites, sync offline e resolução de conflito. É a maior parte do trabalho. |
+| **Viagem internacional, várias moedas** | Câmbio por despesa, cache de cotação, funcionamento sem rede no exterior. |
+| **Divisão simples: igual e valor exato** | Sem porcentagem, sem cotas, sem divisão por item, **um pagador por despesa**. Corta ~40% da complexidade de domínio. |
+| **Só para você e seus amigos** | Sem revisão de loja, sem Sign in with Apple, sem política de privacidade. Distribuição por APK e TestFlight. |
+
+### Princípios não negociáveis
+
+1. **Offline-first de verdade.** Todo fluxo funciona em avião e em roaming ruim no exterior —
+   que é exatamente onde o app vai ser usado. A rede é um detalhe de sincronização.
+2. **Dinheiro é inteiro.** Nenhum valor monetário é `float` em lugar nenhum — nem em memória,
+   nem no banco, nem no JSON de sync. Sempre inteiros na menor unidade da moeda.
+3. **A soma sempre fecha.** A soma das partes de uma despesa é *exatamente* o total, e a soma
+   dos saldos do grupo é *exatamente* zero. Invariante testado, não expectativa.
+4. **Nada é destrutivo.** Exclusão é *tombstone*, com undo.
+5. **Menos toques.** Lançar a despesa típica (valor + divisão igual entre todos) custa no
+   máximo 4 toques a partir da home.
 
 ---
 
 ## 2. Escopo
 
-### v1 (obrigatório)
+### v1 — construir
 
-- Criar/editar/arquivar viagens com moeda-base, período e capa.
-- Participantes locais ("fantasmas", sem conta) e participantes com conta vinculada.
-- Despesas com: descrição, valor, moeda, data, categoria, nota, foto de recibo.
-- **Múltiplos pagadores** por despesa.
-- Modos de divisão: **igual**, **valores exatos**, **porcentagem**, **cotas/pesos**, **por item**.
-- Multi-moeda com taxa de câmbio capturada por despesa e cache de cotações.
+- Viagens com moeda-base, período, capa; arquivar.
+- Participantes: com conta (sincronizam) e "fantasmas" (alguém que não instalou o app, mas
+  participa das contas).
+- Despesas: descrição, valor, moeda, data, categoria, nota, foto de recibo, **um pagador**.
+- Divisão **igual** (entre todos ou entre um subconjunto) e por **valor exato**.
+- Multi-moeda com taxa de câmbio fixada por despesa + cache de cotações + taxa manual offline.
 - Saldos por pessoa, em tempo real, na moeda-base.
-- **Acerto de contas** com simplificação de dívidas (mínimo de transferências) e modo "dívidas reais".
-- Registro de pagamentos/acertos (settlements).
-- Compartilhamento de viagem por link/convite; sync entre dispositivos.
-- Exportação CSV e resumo compartilhável (imagem/texto).
-- pt-BR e en; tema claro/escuro; acessibilidade.
+- Acerto de contas com simplificação de dívidas + registro de pagamentos.
+- Convite por link/QR, sync entre dispositivos, tempo real quando online.
+- Exportar CSV e compartilhar resumo.
+- pt-BR e en, tema claro/escuro, acessibilidade.
 
-### Fora do v1 (não implementar)
+### Cortado de propósito (e como voltar depois)
 
-- Pagamento real / integração com PIX, Stripe, Wise.
-- OCR de recibo (deixar o *hook* `parseReceipt()` com stub e feature flag desligada).
-- Web app.
-- Despesas recorrentes, orçamento por categoria, gráficos avançados.
-- Chat no grupo.
+| Cortado | Por quê | Custo de adicionar depois |
+|---|---|---|
+| Divisão por %, cotas e por item | Escopo "simples" | Médio — `domain/split.ts` já é uma união discriminada; adicionar variantes não quebra o resto |
+| **Múltiplos pagadores** | Escopo "simples" | Baixo — migração que troca `expenses.paid_by` por uma tabela `expense_payers`; o cálculo de saldo já isola isso numa função só |
+| OCR de recibo | Alto custo, baixo retorno no v1 | Hook `parseReceipt()` fica como stub atrás de feature flag |
+| Requisitos de loja | Distribuição privada | Ver §15 |
+| Web app, chat, orçamentos, gráficos | Fora do problema | — |
+
+**Regra para o agente:** implementar o que está no v1. Não "aproveitar que está aqui" e
+adicionar modos de divisão extras — a complexidade cortada é o que torna esse app entregável.
 
 ---
 
-## 3. Stack e decisões técnicas
+## 3. Stack
 
 | Camada | Escolha | Motivo |
 |---|---|---|
-| Framework | **React Native + Expo (SDK mais recente estável)**, TypeScript strict | Um código, duas lojas; EAS resolve build/submit |
-| Navegação | **Expo Router** (file-based) | Deep links de convite quase de graça |
-| Banco local | **expo-sqlite** + **Drizzle ORM** + migrações versionadas | SQL de verdade, migração determinística, offline-first |
-| Estado servidor | **TanStack Query** apenas para o que vem da rede | Cache/retry/invalidation prontos |
-| Estado UI | **Zustand** (stores pequenas e tipadas) | Sem boilerplate de Redux |
-| Backend/sync | **Supabase** (Postgres + Auth + Realtime + Storage + RLS) | Auth social pronto, RLS por grupo, realtime para sync |
-| Auth | Apple Sign In (obrigatório na App Store), Google, e-mail *magic link* | Requisito de loja + baixo atrito |
-| Animação | react-native-reanimated + react-native-gesture-handler | 60fps em listas e sheets |
-| Formulários | react-hook-form + **zod** (schemas compartilhados client/server) | Uma fonte de verdade de validação |
-| Datas | date-fns + date-fns-tz | Leve, tree-shakeable |
-| i18n | i18next + expo-localization | Padrão de mercado |
-| Testes | Vitest (unit), @testing-library/react-native (componentes), **Maestro** (e2e) | Rápido + e2e sem flakiness de Detox |
-| CI | GitHub Actions: typecheck + lint + test em todo PR; EAS Build em tag | Portão de qualidade |
+| Framework | **Expo + React Native**, TypeScript strict | Um código, dois sistemas; EAS resolve os builds |
+| Navegação | **Expo Router** | Deep link de convite quase de graça |
+| Banco local | **expo-sqlite** + **Drizzle ORM** + migrações versionadas | SQL de verdade, offline-first, migração determinística |
+| Backend | **Supabase** (Postgres + Auth + Realtime + Storage + RLS) | Auth e RLS por grupo prontos; realtime para sync |
+| Auth | **Magic link por e-mail** (Supabase), sem senha | Zero atrito, zero conta de desenvolvedor extra. Sem Apple/Google Sign In — só são exigidos por loja, e não vamos publicar |
+| Estado servidor | TanStack Query (só para o que vem da rede) | Retry/cache prontos |
+| Estado UI | Zustand | Sem boilerplate |
+| Validação | zod (schemas compartilhados client/server) | Uma fonte de verdade |
+| Animação | reanimated + gesture-handler | 60fps em listas e sheets |
+| Datas | date-fns | Leve |
+| i18n | i18next + expo-localization | Padrão |
+| Testes | Vitest + fast-check (unit), @testing-library/react-native, **Maestro** (e2e) | Rápido, e2e sem flakiness |
+| Erros | Sentry | Bug de saldo sem log é indepurável |
 
-**Regras de código:**
+**Regras de código**
 
 - `strict: true`, `noUncheckedIndexedAccess: true`, `exactOptionalPropertyTypes: true`.
-- ESLint + Prettier; `import/no-cycle` ligado.
-- Proibido: `any` (usar `unknown` + narrowing), `!` non-null assertion, `parseFloat` em dinheiro.
-- Toda função de domínio é **pura** e vive em `src/domain/` — sem React, sem SQLite, sem I/O.
-  É essa pasta que carrega os testes pesados.
-
-### Estrutura de pastas
+- Proibido: `any`, `!` non-null assertion, `parseFloat` em caminho monetário, cor ou espaçamento
+  fora dos tokens. Tudo isso vira regra de ESLint, não recomendação.
+- Toda lógica de domínio é **pura**, vive em `src/domain/`, e não importa React, SQLite nem rede.
 
 ```
 src/
-  app/                 # rotas (Expo Router)
-  domain/              # ⭐ lógica pura: money, split, balance, settle, fx
-  db/                  # schema drizzle, migrações, repositórios
-  sync/                # outbox, aplicação de ops, resolução de conflito
-  features/            # trips/, expenses/, settle/, participants/ (UI + hooks)
-  ui/                  # design system (Text, Button, Sheet, Money, Avatar...)
-  i18n/
-  config/
-tests/
-  domain/              # testes unitários + property-based
-  e2e/                 # fluxos Maestro
+  app/         # rotas (Expo Router)
+  domain/      # ⭐ money, split, fx, balance, settle — puro e testado
+  db/          # schema drizzle, migrações, repositórios
+  sync/        # outbox, apply, conflito
+  features/    # trips/ expenses/ settle/ participants/
+  ui/          # design system
+  i18n/ config/
+tests/domain/  tests/sync/  tests/e2e/
 ```
 
 ---
@@ -107,173 +113,118 @@ tests/
 ## 4. Arquitetura
 
 ```
-┌────────────────────────────────────────────────────┐
-│ UI (Expo Router + features)                        │
-├────────────────────────────────────────────────────┤
-│ Hooks de leitura (useLiveQuery sobre SQLite)       │
-│ Comandos de escrita (dispatchOp)                   │
-├────────────────────────────────────────────────────┤
-│ domain/ — puro, testável, sem I/O                  │
-├────────────────────────────────────────────────────┤
-│ SQLite local (fonte de verdade da UI) + Outbox     │
-├──────────────── sync worker ───────────────────────┤
-│ Supabase Postgres (fonte de verdade compartilhada) │
-└────────────────────────────────────────────────────┘
+UI (Expo Router)
+  ↓ leitura: queries reativas sobre SQLite    ↑ re-render
+  ↓ escrita: comandos → Op
+domain/  (puro)
+  ↓
+SQLite local  +  ops_outbox      ← fonte de verdade da UI
+  ↕ sync worker (background, retry)
+Supabase Postgres               ← fonte de verdade compartilhada
 ```
 
-**Fluxo de escrita (sempre este, sem exceção):**
+**Fluxo de escrita — sempre este, sem exceção:**
 
-1. UI chama um *comando* (`createExpense`, `updateSplit`, `deleteParticipant`…).
-2. O comando valida com zod, gera uma **operação** (`Op`) com `id` (uuid v7), `lamport`, `actor_id`.
-3. A op é aplicada **localmente** na transação SQLite **e** gravada na tabela `ops_outbox`
-   na mesma transação (atomicidade).
-4. A UI re-renderiza a partir do SQLite (nunca a partir do retorno da função).
-5. O *sync worker* drena o outbox em background, com retry exponencial e *backoff* com jitter.
+1. UI chama um comando (`createExpense`, `updateExpense`, `settleUp`…).
+2. Comando valida com zod e gera uma **Op** com `id` (uuid v7), `lamport`, `actor_id`.
+3. A Op é aplicada no SQLite **e** gravada no `ops_outbox` **na mesma transação**.
+4. A UI re-renderiza a partir do SQLite — nunca a partir do retorno da função.
+5. O sync worker drena o outbox em background com retry exponencial.
 
-**Consequência a respeitar:** a UI nunca mostra *spinner* de salvamento. Salvar é local e
-instantâneo; a rede só produz um indicador discreto de "sincronizando / pendente".
+**Consequência:** não existe spinner de salvamento. Salvar é local e instantâneo. A rede produz
+apenas um indicador discreto de "sincronizando / N pendentes".
 
 ---
 
 ## 5. Modelo de dados
 
-### 5.1 SQLite local (Drizzle) — DDL de referência
+### 5.1 SQLite local
 
 ```sql
 CREATE TABLE trips (
-  id            TEXT PRIMARY KEY,           -- uuid v7
+  id            TEXT PRIMARY KEY,          -- uuid v7
   name          TEXT NOT NULL,
-  base_currency TEXT NOT NULL,              -- ISO 4217, ex 'BRL'
-  starts_on     TEXT,                       -- 'YYYY-MM-DD'
-  ends_on       TEXT,
+  base_currency TEXT NOT NULL,             -- ISO 4217, moeda do acerto final
+  starts_on     TEXT, ends_on TEXT,        -- 'YYYY-MM-DD'
   cover_color   TEXT NOT NULL,
-  archived_at   TEXT,
-  deleted_at    TEXT,
-  lamport       INTEGER NOT NULL DEFAULT 0,
-  actor_id      TEXT NOT NULL,
-  updated_at    TEXT NOT NULL
+  archived_at   TEXT, deleted_at TEXT,
+  lamport INTEGER NOT NULL DEFAULT 0, actor_id TEXT NOT NULL, updated_at TEXT NOT NULL
 );
 
 CREATE TABLE participants (
   id           TEXT PRIMARY KEY,
   trip_id      TEXT NOT NULL REFERENCES trips(id),
   display_name TEXT NOT NULL,
-  user_id      TEXT,                        -- null = participante "fantasma"
+  user_id      TEXT,                       -- null = "fantasma", não instalou o app
   avatar_seed  TEXT NOT NULL,
   email        TEXT,
+  archived_at  TEXT,                       -- sai das novas divisões, permanece no histórico
   deleted_at   TEXT,
-  lamport      INTEGER NOT NULL DEFAULT 0,
-  actor_id     TEXT NOT NULL,
-  updated_at   TEXT NOT NULL
+  lamport INTEGER NOT NULL DEFAULT 0, actor_id TEXT NOT NULL, updated_at TEXT NOT NULL
 );
 
 CREATE TABLE expenses (
-  id             TEXT PRIMARY KEY,
-  trip_id        TEXT NOT NULL REFERENCES trips(id),
-  description    TEXT NOT NULL,
-  category       TEXT NOT NULL DEFAULT 'other',
-  amount_cents   INTEGER NOT NULL CHECK (amount_cents > 0),
-  currency       TEXT NOT NULL,
-  fx_rate_ppm    INTEGER NOT NULL,          -- taxa p/ moeda-base × 1e6, inteiro
-  spent_on       TEXT NOT NULL,             -- 'YYYY-MM-DD' (data local do gasto)
-  split_type     TEXT NOT NULL,             -- equal|exact|percent|shares|items
-  note           TEXT,
-  created_by     TEXT NOT NULL,
-  deleted_at     TEXT,
-  lamport        INTEGER NOT NULL DEFAULT 0,
-  actor_id       TEXT NOT NULL,
-  updated_at     TEXT NOT NULL
+  id           TEXT PRIMARY KEY,
+  trip_id      TEXT NOT NULL REFERENCES trips(id),
+  description  TEXT NOT NULL,
+  category     TEXT NOT NULL DEFAULT 'other',
+  amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+  currency     TEXT NOT NULL,              -- moeda em que se gastou
+  fx_rate_ppm  INTEGER NOT NULL,           -- taxa p/ moeda-base × 1e6 (inteiro), fixada no lançamento
+  fx_manual    INTEGER NOT NULL DEFAULT 0, -- 1 = taxa digitada pelo usuário (badge na UI)
+  spent_on     TEXT NOT NULL,
+  paid_by      TEXT NOT NULL REFERENCES participants(id),   -- um pagador (ver §2, cortes)
+  split_type   TEXT NOT NULL CHECK (split_type IN ('equal','exact')),
+  note         TEXT,
+  created_by   TEXT NOT NULL,
+  deleted_at   TEXT,
+  lamport INTEGER NOT NULL DEFAULT 0, actor_id TEXT NOT NULL, updated_at TEXT NOT NULL
 );
 
--- quem pagou (permite N pagadores); soma DEVE ser igual a expenses.amount_cents
-CREATE TABLE expense_payers (
-  expense_id     TEXT NOT NULL REFERENCES expenses(id),
-  participant_id TEXT NOT NULL REFERENCES participants(id),
-  amount_cents   INTEGER NOT NULL CHECK (amount_cents > 0),
-  PRIMARY KEY (expense_id, participant_id)
-);
-
--- quem deve; 'input' é a entrada bruta do usuário conforme split_type,
--- 'computed_cents' é o resultado já arredondado. Soma DEVE bater com o total.
+-- quem deve quanto. Σ computed_cents DEVE ser igual a expenses.amount_cents, sempre.
 CREATE TABLE expense_shares (
   expense_id     TEXT NOT NULL REFERENCES expenses(id),
   participant_id TEXT NOT NULL REFERENCES participants(id),
-  input_value    INTEGER NOT NULL DEFAULT 0, -- cents | basis points | pesos | 0
+  input_cents    INTEGER NOT NULL DEFAULT 0,  -- usado só em split_type='exact'
   computed_cents INTEGER NOT NULL,
   PRIMARY KEY (expense_id, participant_id)
 );
 
--- divisão por item (split_type='items')
-CREATE TABLE expense_items (
-  id           TEXT PRIMARY KEY,
-  expense_id   TEXT NOT NULL REFERENCES expenses(id),
-  label        TEXT NOT NULL,
-  amount_cents INTEGER NOT NULL,
-  position     INTEGER NOT NULL
-);
-CREATE TABLE expense_item_consumers (
-  item_id        TEXT NOT NULL REFERENCES expense_items(id),
-  participant_id TEXT NOT NULL REFERENCES participants(id),
-  PRIMARY KEY (item_id, participant_id)
-);
-
 CREATE TABLE settlements (
-  id             TEXT PRIMARY KEY,
-  trip_id        TEXT NOT NULL REFERENCES trips(id),
-  from_id        TEXT NOT NULL REFERENCES participants(id),
-  to_id          TEXT NOT NULL REFERENCES participants(id),
-  amount_cents   INTEGER NOT NULL CHECK (amount_cents > 0),
-  currency       TEXT NOT NULL,
-  fx_rate_ppm    INTEGER NOT NULL,
-  settled_on     TEXT NOT NULL,
-  note           TEXT,
-  deleted_at     TEXT,
-  lamport        INTEGER NOT NULL DEFAULT 0,
-  actor_id       TEXT NOT NULL,
-  updated_at     TEXT NOT NULL,
+  id      TEXT PRIMARY KEY,
+  trip_id TEXT NOT NULL REFERENCES trips(id),
+  from_id TEXT NOT NULL REFERENCES participants(id),
+  to_id   TEXT NOT NULL REFERENCES participants(id),
+  amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+  currency TEXT NOT NULL, fx_rate_ppm INTEGER NOT NULL,
+  settled_on TEXT NOT NULL, note TEXT, deleted_at TEXT,
+  lamport INTEGER NOT NULL DEFAULT 0, actor_id TEXT NOT NULL, updated_at TEXT NOT NULL,
   CHECK (from_id <> to_id)
 );
 
 CREATE TABLE attachments (
-  id         TEXT PRIMARY KEY,
-  expense_id TEXT NOT NULL REFERENCES expenses(id),
-  local_uri  TEXT NOT NULL,
-  remote_url TEXT,
-  bytes      INTEGER,
-  uploaded_at TEXT
+  id TEXT PRIMARY KEY, expense_id TEXT NOT NULL REFERENCES expenses(id),
+  local_uri TEXT NOT NULL, remote_url TEXT, bytes INTEGER, uploaded_at TEXT
 );
 
-CREATE TABLE fx_rates (
-  base       TEXT NOT NULL,
-  quote      TEXT NOT NULL,
-  as_of      TEXT NOT NULL,     -- 'YYYY-MM-DD'
-  rate_ppm   INTEGER NOT NULL,
-  PRIMARY KEY (base, quote, as_of)
+CREATE TABLE fx_rates (            -- cache de cotação
+  base TEXT NOT NULL, quote TEXT NOT NULL, as_of TEXT NOT NULL,
+  rate_ppm INTEGER NOT NULL, PRIMARY KEY (base, quote, as_of)
 );
 
 CREATE TABLE ops_outbox (
-  id         TEXT PRIMARY KEY,   -- uuid v7 da operação
-  trip_id    TEXT NOT NULL,
-  entity     TEXT NOT NULL,
-  entity_id  TEXT NOT NULL,
-  kind       TEXT NOT NULL,      -- upsert | delete
-  payload    TEXT NOT NULL,      -- JSON
-  lamport    INTEGER NOT NULL,
-  actor_id   TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  attempts   INTEGER NOT NULL DEFAULT 0,
-  last_error TEXT
+  id TEXT PRIMARY KEY, trip_id TEXT NOT NULL,
+  entity TEXT NOT NULL, entity_id TEXT NOT NULL,
+  kind TEXT NOT NULL,                -- upsert | delete
+  payload TEXT NOT NULL,             -- JSON
+  lamport INTEGER NOT NULL, actor_id TEXT NOT NULL,
+  created_at TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT
 );
 
-CREATE TABLE sync_state (
-  trip_id      TEXT PRIMARY KEY,
-  cursor       TEXT,             -- último server_seq aplicado
-  last_pull_at TEXT
-);
+CREATE TABLE sync_state (trip_id TEXT PRIMARY KEY, cursor TEXT, last_pull_at TEXT);
 
 CREATE INDEX idx_expenses_trip_date ON expenses(trip_id, spent_on DESC) WHERE deleted_at IS NULL;
 CREATE INDEX idx_shares_participant ON expense_shares(participant_id);
-CREATE INDEX idx_payers_participant ON expense_payers(participant_id);
 CREATE INDEX idx_settlements_trip   ON settlements(trip_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_outbox_created     ON ops_outbox(created_at);
 ```
@@ -282,320 +233,296 @@ CREATE INDEX idx_outbox_created     ON ops_outbox(created_at);
 
 Mesmas tabelas, mais:
 
-- `trip_members (trip_id, user_id, role, joined_at)` — `role ∈ {owner, editor}`.
+- `trip_members (trip_id, user_id, role, joined_at)`, `role ∈ {owner, editor}`.
 - `trip_invites (token, trip_id, expires_at, max_uses, uses)` — token de 32 bytes aleatórios.
-- Coluna `server_seq BIGSERIAL` em cada tabela sincronizada → é o cursor de *pull* incremental.
+- `server_seq BIGSERIAL` em cada tabela sincronizada → cursor do *pull* incremental.
 
-**RLS (obrigatório, sem exceção):** toda tabela nega por padrão. Política de leitura e escrita:
-`EXISTS (SELECT 1 FROM trip_members m WHERE m.trip_id = <tabela>.trip_id AND m.user_id = auth.uid())`.
-Storage de recibos: bucket privado, path `trips/{trip_id}/{expense_id}/{uuid}`, política idêntica.
-Escrever teste que confirme que o usuário B **não** lê a viagem do usuário A.
+**RLS obrigatória em todas as tabelas** (nega por padrão):
+`EXISTS (SELECT 1 FROM trip_members m WHERE m.trip_id = <t>.trip_id AND m.user_id = auth.uid())`.
+Bucket de recibos privado, path `trips/{trip_id}/{expense_id}/{uuid}`, mesma política.
+**Teste obrigatório:** usuário B não consegue ler nada da viagem do usuário A.
 
 ---
 
-## 6. Regras de negócio
+## 6. Dinheiro
 
-### 6.1 Dinheiro
+- `Money = { cents: number; currency: CurrencyCode }`, `cents` inteiro (negativo em saldos).
+- Suportar expoentes ≠ 2: JPY/KRW (0 casas), BHD/KWD/TND (3). Tabela `CURRENCY_EXPONENT` em
+  `domain/money.ts`; formatação por `Intl.NumberFormat`. Numa viagem à Ásia isso aparece no dia 1.
+- Parsing aceita `1.234,56`, `1,234.56`, `1234,5`, `1234` — normalizar pelo locale e pelo
+  expoente da moeda. Entrada com mais casas do que a moeda permite → **erro de campo**,
+  nunca arredondamento silencioso.
+- Operações em `Money`: `add`, `sub`, `negate`, `allocate`, `convert`. Não existe multiplicação
+  por decimal fora de `convert`.
 
-- Tipo `Money = { cents: number; currency: CurrencyCode }`, `cents` inteiro (pode ser negativo em saldos).
-- Moedas com expoente ≠ 2 devem funcionar: JPY/KRW (0 casas), BHD/KWD/TND (3 casas).
-  Tabela `CURRENCY_EXPONENT` em `domain/money.ts`; formatação via `Intl.NumberFormat`.
-- Parsing de entrada aceita `1.234,56`, `1,234.56`, `1234,5`, `1234` — normalizar pelo locale ativo
-  e pelo expoente da moeda. Rejeitar (com erro de campo) qualquer entrada com mais casas do que a
-  moeda permite, em vez de arredondar em silêncio.
-- Operações permitidas em `Money`: `add`, `sub`, `negate`, `allocate`. **Não existe** `multiply`
-  por decimal fora de `convert()`.
-
-### 6.2 Arredondamento — `allocate(totalCents, weights[]) → cents[]`
+### `allocate(totalCents, weights[]) → cents[]`
 
 Algoritmo determinístico (*largest remainder*):
 
-1. `exact_i = total × w_i / Σw`; `base_i = floor(exact_i)`.
+1. `exact_i = total × w_i / Σw`, `base_i = floor(exact_i)`.
 2. `resto = total − Σ base_i` (0 ≤ resto < n).
-3. Distribuir 1 centavo para os `resto` participantes com maior parte fracionária;
-   **empate resolvido pelo `participant_id` em ordem lexicográfica crescente** (determinismo
-   entre dispositivos é o ponto: dois celulares devem chegar ao mesmo centavo).
-4. Invariante testado: `Σ resultado === totalCents` para todo input, inclusive `total` negativo,
-   `n = 1`, pesos zerados e pesos gigantes.
+3. Distribuir 1 centavo aos `resto` participantes de maior parte fracionária;
+   **empate resolvido pelo `participant_id` em ordem lexicográfica**.
+4. Invariante testado: `Σ resultado === totalCents` para qualquer entrada — inclusive n=1,
+   total negativo, pesos zerados e pesos enormes.
 
-### 6.3 Modos de divisão
+O passo 3 não é firula: é o que faz o celular da Ana e o do Bruno chegarem ao mesmo centavo
+sem se falarem.
+
+---
+
+## 7. Divisão
 
 | Modo | Entrada | Validação |
 |---|---|---|
-| `equal` | conjunto de participantes | ≥ 1 participante |
-| `exact` | centavos por pessoa | soma **exatamente** igual ao total; UI mostra "faltam R$ X" em tempo real e bloqueia o salvar |
-| `percent` | *basis points* (1% = 100 bp) | soma = 10.000 bp exatos |
-| `shares` | pesos inteiros ≥ 0 (ex.: casal = 2) | Σ pesos > 0 |
-| `items` | itens + consumidores + rateio de taxa/gorjeta | Σ itens ≤ total; sobra (serviço/taxa) é rateada **proporcionalmente ao consumo de cada um**, com `allocate` |
+| `equal` | subconjunto de participantes (default: todos os não arquivados) | ≥ 1 participante; usa `allocate` com pesos 1 |
+| `exact` | centavos por pessoa | soma **exatamente** igual ao total. A UI mostra "faltam R$ 3,40" / "sobram R$ 1,00" em tempo real e **bloqueia o salvar** até fechar |
 
-Casos de borda a tratar explicitamente:
+Casos que precisam funcionar:
 
-- Item sem consumidor marcado → rateia entre **todos** os participantes da despesa.
-- Participante que só pagou e não consumiu (fica com share 0) é válido.
-- Participante que consumiu e não pagou é o caso normal.
-- Despesa cujo pagador não é participante da divisão é válida.
+- O pagador pode não estar na divisão (paguei o táxi que só os outros pegaram).
+- Uma pessoa pode estar na divisão com valor 0 em `exact`.
+- Participante arquivado não aparece em novas divisões, mas continua nas antigas e no saldo.
 
-### 6.4 Câmbio
+---
 
-- Cada despesa guarda `fx_rate_ppm` = taxa **da moeda da despesa para a moeda-base da viagem**,
-  fixada no momento do lançamento (não recalcular retroativamente — a viagem inteira mudaria de
-  saldo ao abrir o app dias depois).
-- Fonte: API pública de cotação (ex.: `exchangerate.host` / `open.er-api.com`), com cache em
-  `fx_rates` por dia. Sem rede: usar a cotação mais recente em cache; se não houver nenhuma,
-  pedir a taxa ao usuário (campo editável) e marcar a despesa com badge "taxa manual".
-- A taxa é **sempre editável** pelo usuário na tela da despesa.
-- Conversão: `baseCents = round(cents × rate_ppm / 1_000_000)` com ajuste de expoente entre moedas
-  de casas diferentes; `round` = *half away from zero*.
+## 8. Câmbio
 
-### 6.5 Saldos
+- Cada despesa guarda `fx_rate_ppm`, a taxa **da moeda da despesa para a moeda-base da viagem**,
+  **fixada no momento do lançamento**. Nunca recalcular retroativamente.
+- Fonte: API pública de cotação (`open.er-api.com` ou equivalente), cache diário em `fx_rates`.
+  Ao abrir a viagem com rede, pré-carregar as cotações das moedas em uso — o app precisa
+  funcionar depois, no metrô de Tóquio, sem sinal.
+- Sem rede e sem cache: campo de taxa editável, despesa marcada com badge "taxa manual"
+  (`fx_manual = 1`), e um aviso não-bloqueante para revisar depois.
+- A taxa é **sempre editável** no detalhe da despesa.
+- `convert`: `baseCents = round(cents × rate_ppm / 1_000_000)` ajustando o expoente entre moedas
+  de casas diferentes; arredondamento *half away from zero*.
+
+---
+
+## 9. Saldos e acerto
 
 Para cada participante `p`, na moeda-base:
 
 ```
-pago(p)   = Σ payers.amount_cents (convertidos)  +  Σ settlements onde from_id = p
-deve(p)   = Σ shares.computed_cents (convertidos) +  Σ settlements onde to_id = p
-saldo(p)  = pago(p) − deve(p)
+pago(p)  = Σ despesas onde paid_by = p (convertidas) + Σ settlements onde from_id = p
+deve(p)  = Σ shares.computed_cents de p (convertidos) + Σ settlements onde to_id = p
+saldo(p) = pago(p) − deve(p)
 ```
 
-`saldo > 0` → tem a receber. `saldo < 0` → deve. **Invariante:** `Σ saldo(p) = 0` exatamente.
-Se o cálculo der ≠ 0 (só pode acontecer por bug de arredondamento em conversão), o app **não**
-disfarça: registra erro em `console.error` + Sentry e exibe o resíduo numa linha "diferença de
-arredondamento" para o usuário, em vez de mentir.
+`saldo > 0` → tem a receber. `< 0` → deve. **Invariante: `Σ saldo(p) = 0` exatamente.**
+Se der ≠ 0 (só por bug de arredondamento em conversão), o app **não disfarça**: loga em Sentry
+e mostra uma linha "diferença de arredondamento" ao usuário. Mentir sobre dinheiro entre amigos
+é pior que mostrar um resíduo de 1 centavo.
 
-### 6.6 Acerto de contas
+### Acerto de contas
 
-Dois modos, alternáveis por um *toggle* na tela de acerto:
-
-**A. Simplificado (padrão)** — minimiza o número de transferências:
+**Simplificado (padrão)** — minimiza transferências:
 
 ```
-devedores  = [p com saldo < 0], ordenados por |saldo| desc
-credores   = [p com saldo > 0], ordenados por saldo desc
+devedores = [saldo < 0] ordenados por |saldo| desc
+credores  = [saldo > 0] ordenados por saldo desc
 enquanto houver ambos:
-  v = min(|saldo devedor topo|, saldo credor topo)
-  emitir transferência devedor → credor de v
-  abater v de ambos; remover quem zerou
+  v = min(|topo devedores|, topo credores)
+  emitir transferência devedor → credor no valor v
+  abater v de ambos, remover quem zerou
 ```
 
-Resulta em ≤ n−1 transferências (não é o ótimo global, que é NP-difícil, e isso é aceitável —
-documentar no código). Determinístico: empates ordenados por `participant_id`.
+≤ n−1 transferências. Não é o ótimo global (é NP-difícil) e isso é aceitável — documentar no
+código. Empates ordenados por `participant_id` para ser determinístico.
 
-**B. Dívidas reais** — mantém o par credor/devedor derivado das despesas efetivas,
-sem redirecionar pagamentos entre pessoas que não interagiram.
+**Dívidas reais** (toggle) — mantém os pares credor/devedor derivados das despesas, sem
+redirecionar pagamento entre pessoas que não interagiram.
 
-Registrar um acerto cria um `settlement`, que entra no cálculo de saldo — nunca apaga despesas.
-
----
-
-## 7. Sincronização e conflitos
-
-- **Relógio:** Lamport por dispositivo. `lamport = max(local, recebido) + 1` a cada op.
-- **Resolução:** last-writer-wins por entidade, comparando a tupla `(lamport, actor_id)` —
-  `actor_id` desempata lexicograficamente, o que garante que **todos os dispositivos convergem
-  para o mesmo resultado** sem coordenação.
-- **Exclusão:** tombstone (`deleted_at`). Uma edição com lamport maior que uma exclusão
-  **ressuscita** o registro (comportamento escolhido: perder um gasto é pior que ver um gasto que
-  alguém tentou apagar). Documentar.
-- **Filhos (payers/shares/items):** substituição atômica do conjunto inteiro junto com a despesa
-  pai — nunca merge parcial de linhas, que produziria uma despesa cuja soma não fecha.
-- **Pull:** `GET rows WHERE trip_id = ? AND server_seq > cursor ORDER BY server_seq` + Realtime
-  para o caso online. Aplicar em transação, avançar cursor no fim.
-- **Push:** drenar `ops_outbox` em ordem de `created_at`; a op é idempotente pelo `id` (upsert com
-  `ON CONFLICT (id) DO NOTHING` na tabela de ops do servidor).
-- **Retry:** exponencial 1s→2s→4s→…→5min com jitter; após 10 falhas, marcar `last_error` e mostrar
-  banner "não foi possível sincronizar" com botão "tentar agora" e "ver detalhes".
-- **Nunca** bloquear a UI esperando sync. Nunca perder o outbox: ele é SQLite, não memória.
+Marcar como pago cria um `settlement`. Nunca apaga despesa.
 
 ---
 
-## 8. Telas e fluxos
+## 10. Sincronização e conflito
 
-Cada tela precisa de **quatro estados implementados**: carregando (skeleton, não spinner
-centralizado), vazio (com ação primária), erro (com retry) e conteúdo.
+- **Relógio de Lamport** por dispositivo: `lamport = max(local, recebido) + 1`.
+  Não usar o relógio do celular para ordenar — o do seu amigo pode estar errado, e no exterior
+  o fuso muda no meio da viagem.
+- **Resolução:** last-writer-wins por entidade comparando `(lamport, actor_id)`, `actor_id`
+  desempatando lexicograficamente. Garante que todos os dispositivos convergem para o mesmo
+  estado sem coordenação.
+- **Exclusão:** tombstone. Edição com lamport maior que a exclusão **ressuscita** o registro —
+  perder um gasto é pior que ver um gasto que alguém tentou apagar. Documentar.
+- **Shares:** substituição atômica do conjunto inteiro junto com a despesa pai. Nunca merge
+  linha a linha — produziria uma despesa cujas partes não somam o total.
+- **Pull:** `WHERE trip_id = ? AND server_seq > cursor ORDER BY server_seq`, aplicado em
+  transação, cursor avançado no fim. Realtime do Supabase para o caso online.
+- **Push:** drenar `ops_outbox` em ordem de `created_at`; idempotente pelo `id`
+  (`ON CONFLICT (id) DO NOTHING`).
+- **Retry:** exponencial 1s→2s→…→5min com jitter. Após 10 falhas, banner "não foi possível
+  sincronizar" com "tentar agora" e "ver detalhes".
+- O outbox mora no SQLite, não em memória: matar o app no meio do envio não perde nem duplica op.
 
-1. **Onboarding** (3 telas, puláveis) → login social ou "usar sem conta" (viagem só local, com
-   aviso claro de que não sincroniza).
+---
+
+## 11. Telas
+
+Toda tela precisa dos **quatro estados**: carregando (skeleton, não spinner central), vazio
+(com ação primária), erro (com retry) e conteúdo.
+
+1. **Entrada.** E-mail → magic link. Botão "usar sem conta" cria viagem só local, com aviso
+   claro de que não sincroniza.
 2. **Home — Minhas viagens.** Cards com nome, período, seu saldo (verde/vermelho), avatares.
-   Seções "Ativas" e "Arquivadas". FAB "Nova viagem".
-3. **Nova viagem.** Nome, moeda-base (default = moeda do locale), datas opcionais, cor,
-   participantes (adicionar nome livre, sem exigir conta).
-4. **Viagem — aba Despesas.** Lista agrupada por dia, com cabeçalho *sticky* de data; cada linha:
-   ícone da categoria, descrição, "Fulano pagou R$ X", e à direita seu impacto pessoal
-   ("você deve R$ 12,50" / "você emprestou R$ 40"). Busca e filtro por pessoa/categoria.
-5. **Nova despesa (a tela mais importante — otimizar o caminho rápido).**
-   Teclado numérico grande abre já focado; valor → descrição → "quem pagou" (default: você) →
-   "dividir entre" (default: todos, igual) → salvar. Modos avançados atrás de um seletor,
-   não à frente. Suporte a foto de recibo e a mudar a moeda inline.
-6. **Detalhe da despesa.** Quem pagou, quem deve quanto, taxa de câmbio usada (editável),
-   recibo, histórico de edições, excluir (com undo em snackbar de 5s).
-7. **Viagem — aba Saldos.** Barra por pessoa (positivo/negativo), total gasto na viagem,
-   gasto médio por pessoa, "você" destacado.
-8. **Acertar contas.** Lista de transferências sugeridas ("Ana paga R$ 87,30 a Bruno"), toggle
-   simplificado/real, botão "marcar como pago" por linha, e botão "compartilhar acerto".
-9. **Participantes.** Adicionar/renomear/remover. **Remover só é permitido se a pessoa tiver
-   saldo zero e nenhuma despesa** — caso contrário, oferecer "arquivar participante"
-   (some das novas divisões, permanece no histórico). Isso evita corromper saldos.
-10. **Convite.** Gera link `rachei://join/{token}` + universal link `https://<dominio>/join/{token}`,
-    com QR code para uso presencial (o caso real: mesa de restaurante).
-11. **Ajustes.** Idioma, tema, moeda padrão, exportar CSV, apagar dados locais, sobre.
+   Ativas e arquivadas. FAB "Nova viagem".
+3. **Nova viagem.** Nome, moeda-base (default = locale), datas, cor, participantes
+   (nome livre, sem exigir conta).
+4. **Viagem — Despesas.** Lista por dia com cabeçalho sticky; cada linha: categoria, descrição,
+   "Ana pagou ¥ 3.200", e à direita o seu impacto ("você deve R$ 42,10"). Busca e filtro.
+5. **Nova despesa — a tela mais importante.** Teclado numérico grande já focado:
+   valor → descrição → quem pagou (default: você) → dividir entre (default: todos, igual) →
+   salvar. Trocar moeda inline; "valor exato" atrás de um seletor, não à frente.
+6. **Detalhe da despesa.** Quem pagou, quem deve quanto, taxa de câmbio usada (editável, com
+   badge se manual), recibo, excluir com undo de 5s.
+7. **Saldos.** Barra por pessoa, total da viagem, média por pessoa, "você" destacado.
+8. **Acertar contas.** "Ana paga R$ 87,30 a Bruno", toggle simplificado/real, "marcar como pago"
+   por linha, compartilhar resumo.
+9. **Participantes.** Adicionar, renomear, arquivar. **Remover só se saldo zero e sem despesas** —
+   caso contrário, arquivar. Isso é o que impede corromper o saldo do grupo inteiro.
+10. **Convite.** `rachei://join/{token}` + link universal + **QR code** — o caso real é a mesa
+    do restaurante, não o e-mail.
+11. **Ajustes.** Idioma, tema, moeda padrão, exportar CSV, apagar dados locais, diagnóstico.
+
+### Design system
+
+Tokens em `src/ui/tokens.ts`: cores **semânticas** (`bg`, `bgElevated`, `text`, `textMuted`,
+`positive`, `negative`, `accent`), espaçamento base 4, raios, tipografia. Claro e escuro
+derivados dos mesmos tokens. Componentes: `Text`, `Button`, `Input`, `MoneyInput`, `Money`,
+`Avatar`, `Card`, `Sheet`, `ListRow`, `SegmentedControl`, `EmptyState`, `Skeleton`, `Snackbar`,
+`Chip`. Toque mínimo 44×44pt, háptico em confirmações, e valores monetários em
+`fontVariant: ['tabular-nums']` para os números não dançarem na lista.
+
+### Notificações e links
+
+`expo-notifications`: push quando alguém lança despesa que te afeta, quando te convidam e quando
+marcam acerto com você; silenciável por viagem. **Pedir permissão só depois da primeira despesa
+criada**, nunca na abertura. Deep links: `/join/{token}`, `/trip/{id}`, `/trip/{id}/expense/{id}` —
+cold start com link deve chegar ao destino certo depois do login.
 
 ---
 
-## 9. Design system
+## 12. Segurança, privacidade e resiliência
 
-- Definir tokens em `src/ui/tokens.ts`: cores (semânticas, não literais — `bg`, `bgElevated`,
-  `text`, `textMuted`, `positive`, `negative`, `accent`), espaçamento base 4, raios, tipografia,
-  sombras. Tema claro e escuro derivados dos mesmos tokens semânticos.
-- Componentes: `Text`, `Button` (primary/secondary/ghost/destructive, com estado `loading` e
-  `disabled`), `Input`, `MoneyInput`, `Money` (formatador), `Avatar`, `Card`, `Sheet`,
-  `ListRow`, `SegmentedControl`, `EmptyState`, `Skeleton`, `Snackbar`, `Chip`.
-- Nada de valor de cor ou espaçamento *hard-coded* fora de `tokens.ts` — regra de lint.
-- Toque mínimo 44×44pt. Feedback háptico em ações de confirmação (`expo-haptics`).
-- Números monetários em fonte tabular (`fontVariant: ['tabular-nums']`) para não "dançar".
-
----
-
-## 10. Notificações e deep links
-
-- `expo-notifications`: push quando alguém adiciona despesa que te afeta, quando te convidam e
-  quando marcam um acerto com você. Silenciável por viagem. **Pedir permissão só depois** da
-  primeira despesa criada, nunca na abertura.
-- Deep link scheme `rachei://` + Universal/App Links. Rotas: `/join/{token}`,
-  `/trip/{id}`, `/trip/{id}/expense/{id}`.
-- Cold start com deep link deve levar à tela certa depois do login, sem perder o destino.
-
----
-
-## 11. Segurança e privacidade
-
-- Tokens de sessão no **SecureStore** (Keychain/Keystore), nunca em AsyncStorage.
-- RLS ativa em todas as tabelas; validar no servidor tudo o que o cliente valida.
+- Sessão no **SecureStore** (Keychain/Keystore), nunca em AsyncStorage.
+- RLS em tudo; validar no servidor o mesmo que o cliente valida.
 - Convite: token de alta entropia, expira em 7 dias, revogável, limite de usos.
-- Recibos em bucket privado com URLs assinadas de curta duração.
-- Sem analytics de terceiros no v1 além de Sentry (com `sendDefaultPii: false` e scrubbing de
-  descrições de despesa).
-- Tela "Apagar minha conta" que realmente apaga (requisito de App Store e LGPD/GDPR).
-- Política de privacidade e `app.json` com as *privacy manifests* do iOS preenchidas.
+- Recibos em bucket privado com URL assinada de curta duração.
+- Sentry com `sendDefaultPii: false` e scrubbing das descrições de despesa.
+- Error boundary por rota; log estruturado local (ring buffer de 500 entradas) exportável em
+  Ajustes → "Enviar diagnóstico". Sem isso, um bug de saldo relatado por amigo é indepurável.
+- Migrações numeradas e testadas: **um teste roda todas as migrações num banco populado e
+  verifica os invariantes de saldo no fim**.
+
+### i18n e acessibilidade
+
+pt-BR (padrão) e en, zero string literal na UI. Moeda/data/plural pelo `Intl` com o locale ativo.
+`accessibilityLabel` e `accessibilityRole` em todo elemento interativo; VoiceOver e TalkBack
+navegam tudo; layout não quebra em `fontScale` 1.5; contraste AA; respeitar
+`prefers-reduced-motion`.
 
 ---
 
-## 12. Resiliência e observabilidade
+## 13. Testes
 
-- **Error boundary** por rota, com tela de erro amigável e botão "reportar".
-- Sentry com *release health*; breadcrumb em toda op de sync.
-- Log estruturado local (ring buffer de 500 entradas) exportável em Ajustes → "Enviar
-  diagnóstico" — indispensável para depurar bug de saldo relatado por usuário.
-- Migrações de banco: numeradas, testadas com fixture da versão anterior; **teste que roda toda
-  migração da v1 até a atual num banco populado** e verifica os invariantes de saldo.
-- Feature flags simples em `config/flags.ts` (OCR, simplificação, multi-pagador).
+**Portão: `npm run verify` = typecheck + lint + testes. Nada é "pronto" sem ele verde.**
 
----
+### `domain/` — cobertura ≥ 90%
 
-## 13. i18n e acessibilidade
-
-- pt-BR (padrão) e en. Nenhuma string literal na UI — tudo por chave.
-- Pluralização e formatação de moeda/data pelo `Intl` com o locale ativo.
-- Todo elemento interativo com `accessibilityLabel` e `accessibilityRole`; testar com
-  VoiceOver e TalkBack; suportar fonte ampliada (layouts não podem quebrar em `fontScale` 1.5);
-  contraste AA mínimo; respeitar `prefers-reduced-motion`.
-
----
-
-## 14. Testes
-
-**Portão de qualidade: `npm run verify` = typecheck + lint + testes. Nada é considerado pronto sem ele verde.**
-
-### Unitários obrigatórios em `domain/` (cobertura ≥ 90% nessa pasta)
-
-- `allocate`: property-based (fast-check) — para qualquer total e quaisquer pesos,
-  `Σ resultado === total` e nenhuma parte é negativa quando o total é positivo.
-- Divisão igual de R$ 100,00 entre 3 → `[3334, 3333, 3333]`, e a mesma entrada em qualquer
-  ordem de participantes produz a **mesma** atribuição.
+- `allocate`, property-based (fast-check): para qualquer total e quaisquer pesos,
+  `Σ resultado === total`, sem partes negativas quando o total é positivo.
+- R$ 100,00 igual entre 3 → `[3334, 3333, 3333]`; **a mesma entrada em qualquer ordem de
+  participantes produz a mesma atribuição**.
 - `exact` com soma divergente → erro de validação, nunca salva.
-- `percent` com 33,33% × 3 → rejeita (9.999 bp) com mensagem clara.
-- `items` com taxa de serviço de 10% rateada proporcionalmente.
-- Multi-pagador: 2 pagadores, 4 devedores, moedas mistas → `Σ saldos === 0`.
-- Moeda sem casas decimais (JPY) e com 3 casas (KWD).
-- Simplificação: cenário de 5 pessoas gera ≤ 4 transferências e preserva todos os saldos.
-- Settlement parcial (paguei metade) mantém o resto devido.
-- Property-based geral: para qualquer viagem gerada aleatoriamente (despesas, moedas, acertos),
-  `Σ saldos === 0`.
+- Despesa cujo pagador não está na divisão → saldos corretos.
+- JPY (0 casas) e KWD (3 casas) em cálculo e formatação.
+- Viagem multi-moeda (BRL base, gastos em JPY, EUR, USD) → `Σ saldos === 0`.
+- Simplificação com 5 pessoas → ≤ 4 transferências, saldos preservados.
+- Settlement parcial mantém o resto devido.
+- Property-based geral: para qualquer viagem gerada aleatoriamente, `Σ saldos === 0`.
 
-### Sync
+### `sync/`
 
-- Duas réplicas simuladas aplicando ops fora de ordem convergem para estado idêntico.
+- Duas réplicas aplicando ops fora de ordem convergem ao estado idêntico.
 - Edição concorrente da mesma despesa em dois dispositivos → mesmo vencedor nos dois.
-- Delete vs. edição concorrente → comportamento documentado (§7) em ambos.
-- Outbox sobrevive a *kill* do app no meio do envio (nenhuma op perdida, nenhuma duplicada).
+- Delete vs. edição concorrente → comportamento da §10 em ambos os lados.
+- Kill do app no meio do envio → nenhuma op perdida, nenhuma duplicada.
+- RLS: usuário fora do grupo não lê nada.
 
 ### E2E (Maestro)
 
-1. Criar viagem → 3 participantes → 3 despesas → conferir saldos → acertar → saldos zerados.
-2. Modo avião: criar despesa offline, matar o app, reabrir, voltar online, confirmar sync.
-3. Convite: dispositivo B entra pelo link e vê as despesas do A.
-4. Divisão por item num restaurante com gorjeta.
+1. Criar viagem → 3 participantes → 3 despesas → conferir saldos → acertar → tudo zerado.
+2. **Modo avião:** criar despesa offline, matar o app, reabrir, voltar online, confirmar sync.
+3. **Convite:** dispositivo B entra pelo link e vê as despesas do A.
+4. **Multi-moeda:** gasto em JPY numa viagem com base BRL, taxa manual offline, revisão depois.
 
 ---
 
-## 15. Build, CI e lojas
+## 14. Ordem de implementação
 
-- `eas.json` com perfis `development`, `preview` (APK + simulator build) e `production`.
-- GitHub Actions: PR → `npm run verify`; tag `v*` → EAS Build iOS+Android e `eas submit`.
-- `app.json`: bundle ids, ícones (1024²), splash, permissões com **texto de justificativa em
-  pt-BR e en** (câmera → "para fotografar recibos"; fotos; notificações).
-- Checklist de loja: política de privacidade publicada, Sign in with Apple presente se houver
-  qualquer login social, exclusão de conta no app, screenshots nos tamanhos exigidos,
-  classificação etária, e `NSPhotoLibraryUsageDescription` etc. preenchidos.
-- Versionamento: `expo-updates` para correção rápida de JS; incrementar `runtimeVersion` em
-  mudança nativa.
-
----
-
-## 16. Ordem de implementação (fases)
-
-Cada fase termina com `npm run verify` verde e um commit. **Não pule para a fase seguinte com
-teste vermelho.**
+Cada fase termina com `npm run verify` verde e um commit. Não avance com teste vermelho.
 
 | Fase | Entrega | Critério de aceite |
 |---|---|---|
-| **0** | Projeto Expo + TS strict + lint + Vitest + estrutura de pastas + CI | `npm run verify` roda e passa em CI |
-| **1** | `domain/`: money, allocate, splits, balances, settle, fx — **puro, sem UI** | Toda a §14 "Unitários obrigatórios" verde. **Esta é a fase mais importante do projeto** |
-| **2** | SQLite + Drizzle + migrações + repositórios + comandos com outbox | Teste de migração e de atomicidade (op + estado na mesma transação) |
-| **3** | Design system + navegação + telas de viagem/despesa/saldo, 100% offline, sem backend | E2E #1 passa; app usável de ponta a ponta sem rede |
-| **4** | Modos avançados de divisão (exato, %, cotas, itens) + multi-pagador + multi-moeda | E2E #4 passa; badge de taxa manual funciona |
+| **0** | Expo + TS strict + lint + Vitest + estrutura + CI | `verify` roda e passa em CI |
+| **1** | `domain/` completo: money, allocate, equal/exact, fx, balance, settle — **puro, sem UI** | Toda a §13 `domain/` verde. **É a fase mais importante do projeto**: acerte aqui e o resto é tela |
+| **2** | SQLite + Drizzle + migrações + repositórios + comandos com outbox | Teste de migração e de atomicidade (estado + op na mesma transação) |
+| **3** | Design system + navegação + viagens/despesas/saldos, **100% offline, sem backend** | E2E #1 passa; app inteiro usável sem rede |
+| **4** | Multi-moeda na UI: seletor, cotação, cache, taxa manual, badge | E2E #4 passa |
 | **5** | Acerto de contas (dois modos) + settlements + compartilhar resumo | E2E #1 fecha em saldo zero |
-| **6** | Supabase: auth, schema, RLS, sync worker, realtime, convites, deep links | E2E #2 e #3 passam; teste de RLS negando acesso cruzado |
-| **7** | Recibos + Storage, notificações, exportar CSV | Upload resiliente a queda de rede (retomável) |
-| **8** | i18n, acessibilidade, tema escuro, polimento, estados vazios/erro | Auditoria de a11y sem falhas críticas; `fontScale` 1.5 sem quebra |
-| **9** | Sentry, diagnósticos, EAS Build, ícones, metadados de loja | Build de produção instalável nas duas plataformas |
+| **6** | Supabase: auth por magic link, schema, RLS, sync worker, realtime, convites, QR, deep links | E2E #2 e #3 passam; teste de RLS negando acesso cruzado |
+| **7** | Recibos + Storage, notificações, exportar CSV, i18n, a11y, tema escuro, polimento | Upload retomável após queda de rede; `fontScale` 1.5 sem quebra |
+| **8** | Sentry, diagnóstico, EAS Build, ícone, splash, distribuição | APK instalável + build no TestFlight |
+
+Um app útil já existe no fim da Fase 3 — dá para usar numa viagem sozinho antes de o sync existir.
 
 ---
 
-## 17. Definition of Done (global)
+## 15. Distribuição (uso privado)
+
+- **Android:** EAS Build perfil `preview` → APK, distribuído por link direto. Grátis, sem
+  burocracia. Seus amigos instalam habilitando "fontes desconhecidas".
+- **iPhone:** **exige a Apple Developer Program, US$ 99/ano.** Não existe caminho gratuito
+  razoável — build sideloaded sem conta paga expira em 7 dias. Com a conta: TestFlight,
+  até 100 testadores internos, build válido por 90 dias. Se não quiser pagar, o app funciona
+  em Android e no seu iPhone só via build de desenvolvimento local.
+- Sem publicação em loja, ficam **fora**: Sign in with Apple, política de privacidade,
+  tela de exclusão de conta, screenshots, classificação etária, privacy manifests.
+  Se um dia decidir publicar, esses são os itens a acrescentar — nada no código muda.
+- `expo-updates` para corrigir JS sem novo build; incrementar `runtimeVersion` em mudança nativa.
+- Permissões com justificativa em pt-BR e en (câmera → "para fotografar recibos").
+
+---
+
+## 16. Definition of Done
 
 - [ ] `npm run verify` verde; cobertura de `domain/` ≥ 90%.
-- [ ] Todos os fluxos da §8 funcionam **em modo avião**.
-- [ ] `Σ saldos = 0` verificado por teste property-based em viagens aleatórias.
-- [ ] Nenhum `any`, nenhum `float` em caminho monetário, nenhuma cor fora dos tokens (lint garante).
-- [ ] Dois dispositivos convergem para o mesmo estado após edição offline simultânea.
+- [ ] Todos os fluxos da §11 funcionam **em modo avião**.
+- [ ] `Σ saldos = 0` verificado por teste property-based em viagens aleatórias multi-moeda.
+- [ ] Dois dispositivos convergem ao mesmo estado após edição offline simultânea.
 - [ ] RLS testada: usuário fora do grupo não lê nada.
-- [ ] App abre em < 2s em Android mid-range; lista de 500 despesas rola a 60fps.
+- [ ] Nenhum `any`, nenhum `float` em caminho monetário, nenhuma cor fora dos tokens.
+- [ ] App abre em < 2s em Android mediano; lista de 500 despesas rola a 60fps.
 - [ ] pt-BR e en completos; VoiceOver e TalkBack navegam todas as telas.
-- [ ] Builds de produção iOS e Android gerados pelo EAS.
+- [ ] APK e build TestFlight gerados e instalados.
 - [ ] `docs/DECISIONS.md` registra toda decisão tomada fora deste spec.
 
 ---
 
-## 18. Armadilhas conhecidas (leia antes de codar)
+## 17. Armadilhas conhecidas (leia antes de codar)
 
 1. **Não recalcule câmbio retroativamente.** A taxa é fixada no lançamento. Recalcular faz o
-   saldo de uma viagem encerrada mudar sozinho — é o bug que mais destrói confiança nesse tipo de app.
+   saldo de uma viagem encerrada mudar sozinho — é o bug que mais destrói a confiança nesse
+   tipo de app, e num app multi-moeda ele é fácil de introduzir sem perceber.
 2. **Não use `float` "só no cálculo intermediário".** `0.1 + 0.2` já erra; três pessoas e uma
-   gorjeta e a soma não fecha.
+   conversão de moeda e a soma não fecha.
 3. **Não permita remover participante com histórico.** Arquive.
-4. **Não empurre `spinner` de salvamento.** Salvar é local.
-5. **Não faça merge linha a linha de shares.** Substitua o conjunto inteiro, ou uma despesa acaba
-   com partes que não somam o total.
-6. **Não peça login antes de mostrar valor.** Deixe criar a primeira viagem local.
-7. **Não confie no relógio do dispositivo para ordenar ops.** Use Lamport; o celular do amigo
-   pode estar com a data errada.
+4. **Não mostre spinner de salvamento.** Salvar é local.
+5. **Não faça merge parcial de shares.** Substitua o conjunto inteiro.
+6. **Não peça login antes de entregar valor.** Deixe criar a primeira viagem local.
+7. **Não ordene ops pelo relógio do dispositivo.** Use Lamport.
+8. **Não assuma 2 casas decimais.** JPY não tem centavo.
