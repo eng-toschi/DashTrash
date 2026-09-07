@@ -1,0 +1,126 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Figtree:wght@400..800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Figtree', ui-sans-serif, system-ui, sans-serif; }
+    a { color: #6D4AFF; } a:hover { color: #5539D6; }
+    .num { font-variant-numeric: tabular-nums; }
+    .display { font-family: 'Bricolage Grotesque', 'Figtree', sans-serif; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #FAF7F2; color: #1F1B16; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 26px 20px 18px 20px;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F1B16" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+    <span class="display" style="font-size: 17px; font-weight: 700;">Fechamento</span>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F1B16" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 13px; padding: 0 20px; overflow: hidden;">
+
+    <div style="background: #FFFFFF; border: 1px solid #E8E1D7; border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 15px;">
+      <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-size: 12px; font-weight: 600; color: #7A7168;">Gasto total · 15 dias</span>
+          <span class="display num" style="font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">R$ 18.402,10</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px; align-items: flex-end;">
+          <span style="font-size: 12px; font-weight: 600; color: #7A7168;">Por pessoa</span>
+          <span class="display num" style="font-size: 17px; font-weight: 700;">R$ 4.600,53</span>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 9px;">
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <span style="width: 74px; font-size: 12.5px; font-weight: 600; color: #4A443C;">Hospedagem</span>
+          <div style="flex-grow: 1; height: 9px; background: #F3EEE7; border-radius: 999px; overflow: hidden;"><div style="width: 48.6%; height: 9px; background: #6D4AFF; border-radius: 999px;"></div></div>
+          <span class="num" style="width: 74px; text-align: right; font-size: 12.5px; font-weight: 700;">R$ 8.940,00</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <span style="width: 74px; font-size: 12.5px; font-weight: 600; color: #4A443C;">Restaurantes</span>
+          <div style="flex-grow: 1; height: 9px; background: #F3EEE7; border-radius: 999px; overflow: hidden;"><div style="width: 25.1%; height: 9px; background: #E8654F; border-radius: 999px;"></div></div>
+          <span class="num" style="width: 74px; text-align: right; font-size: 12.5px; font-weight: 700;">R$ 4.612,50</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <span style="width: 74px; font-size: 12.5px; font-weight: 600; color: #4A443C;">Transporte</span>
+          <div style="flex-grow: 1; height: 9px; background: #F3EEE7; border-radius: 999px; overflow: hidden;"><div style="width: 17%; height: 9px; background: #E2A63C; border-radius: 999px;"></div></div>
+          <span class="num" style="width: 74px; text-align: right; font-size: 12.5px; font-weight: 700;">R$ 3.128,40</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <span style="width: 74px; font-size: 12.5px; font-weight: 600; color: #4A443C;">Passeios</span>
+          <div style="flex-grow: 1; height: 9px; background: #F3EEE7; border-radius: 999px; overflow: hidden;"><div style="width: 9.3%; height: 9px; background: #3FA97A; border-radius: 999px;"></div></div>
+          <span class="num" style="width: 74px; text-align: right; font-size: 12.5px; font-weight: 700;">R$ 1.721,20</span>
+        </div>
+      </div>
+
+      <span style="font-size: 12px; color: #A79C90; font-weight: 500;">Gastos em ¥ convertidos pela taxa de cada dia.</span>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px 0 2px;">
+      <span class="display" style="font-size: 17px; font-weight: 700;">Quem paga a quem</span>
+      <div style="display: flex; background: #F3EEE7; border-radius: 999px; padding: 3px;">
+        <div style="background: #FFFFFF; border-radius: 999px; padding: 6px 11px; font-size: 12px; font-weight: 700; box-shadow: 0 1px 4px rgba(31,27,22,0.08);">Simplificado</div>
+        <div style="border-radius: 999px; padding: 6px 11px; font-size: 12px; font-weight: 600; color: #7A7168;">Dívidas reais</div>
+      </div>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E8E1D7; border-radius: 20px; padding: 14px 16px; display: flex; align-items: center; gap: 12px;">
+      <div style="display: flex; align-items: center;">
+        <div style="width: 31px; height: 31px; border-radius: 999px; background: #E2A63C; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 2px solid #FFFFFF;">B</div>
+        <div style="width: 31px; height: 31px; border-radius: 999px; background: #E8654F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 2px solid #FFFFFF; margin-left: -9px;">A</div>
+      </div>
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 14.5px; font-weight: 650;">Bruno paga a Ana</span>
+        <span class="num" style="font-size: 16px; font-weight: 700; color: #1F1B16;">R$ 1.902,40</span>
+      </div>
+      <div style="border: 1.5px solid #1F1B16; border-radius: 999px; padding: 8px 13px; font-size: 12.5px; font-weight: 700;">Pago</div>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E8E1D7; border-radius: 20px; padding: 14px 16px; display: flex; align-items: center; gap: 12px;">
+      <div style="display: flex; align-items: center;">
+        <div style="width: 31px; height: 31px; border-radius: 999px; background: #3FA97A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 2px solid #FFFFFF;">C</div>
+        <div style="width: 31px; height: 31px; border-radius: 999px; background: #6D4AFF; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 2px solid #FFFFFF; margin-left: -9px;">V</div>
+      </div>
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 14.5px; font-weight: 650;">Carla paga a você</span>
+        <span class="num" style="font-size: 16px; font-weight: 700;">R$ 1.284,30</span>
+      </div>
+      <div style="border: 1.5px solid #1F1B16; border-radius: 999px; padding: 8px 13px; font-size: 12.5px; font-weight: 700;">Pago</div>
+    </div>
+
+    <div style="background: #F3F0EA; border: 1px solid #E8E1D7; border-radius: 20px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; opacity: 0.72;">
+      <div style="display: flex; align-items: center;">
+        <div style="width: 31px; height: 31px; border-radius: 999px; background: #3FA97A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 2px solid #F3F0EA;">C</div>
+        <div style="width: 31px; height: 31px; border-radius: 999px; background: #E8654F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 2px solid #F3F0EA; margin-left: -9px;">A</div>
+      </div>
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 14.5px; font-weight: 650; text-decoration: line-through; color: #7A7168;">Carla paga a Ana</span>
+        <span class="num" style="font-size: 16px; font-weight: 700; color: #7A7168; text-decoration: line-through;">R$ 238,10</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 5px; color: #1F8A5B;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <span style="font-size: 12.5px; font-weight: 700;">Pago</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="position: absolute; left: 20px; right: 20px; bottom: 30px; display: flex; flex-direction: column; gap: 9px;">
+    <div style="background: #E8E1D7; color: #8A8076; border-radius: 999px; height: 54px; display: flex; align-items: center; justify-content: center;">
+      <span style="font-size: 16px; font-weight: 700;">Encerrar viagem</span>
+    </div>
+    <span style="font-size: 12.5px; font-weight: 500; color: #7A7168; text-align: center;">Faltam 2 pagamentos para todo mundo zerar.</span>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

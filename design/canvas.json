@@ -1,0 +1,16 @@
+{
+  "artboards": [
+    { "file": "Home.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "title": "Minhas viagens" },
+    { "file": "Main.dc.html", "x": 490, "y": 0, "w": 390, "h": 844, "title": "Despesas da viagem" },
+    { "file": "NovaDespesa.dc.html", "x": 980, "y": 0, "w": 390, "h": 844, "title": "Nova despesa" },
+    { "file": "Saldos.dc.html", "x": 0, "y": 984, "w": 390, "h": 844, "title": "Saldos (tema escuro)" },
+    { "file": "Fechamento.dc.html", "x": 490, "y": 984, "w": 390, "h": 844, "title": "Fechamento" },
+    { "file": "Participantes.dc.html", "x": 980, "y": 984, "w": 390, "h": 844, "title": "Participantes e convite (tema escuro)" }
+  ],
+  "annotations": [
+    { "id": "nota-subgrupo", "x": 980, "y": -150, "w": 390, "text": "O seletor \"dividir entre\" é elemento de primeira classe: o grupo se separa o tempo todo. Os chips de subgrupo salvo (\"Turma do jantar\") evitam remarcar as mesmas 4 pessoas em 15 despesas seguidas." },
+    { "id": "nota-tema", "x": 0, "y": -150, "w": 880, "text": "Direção \"grupo de amigos\": cada pessoa tem cor fixa, cantos generosos, tom informal. Quatro telas no tema claro e duas no escuro — os dois usam os mesmos tokens semânticos." },
+    { "id": "nota-fechamento", "x": 490, "y": 1874, "w": 390, "text": "O botão de encerrar fica desabilitado explicando o que falta, em vez de só ficar cinza. O modo simplificado não promete menos transferências — é heurística (ver docs/DECISIONS.md)." }
+  ],
+  "launch": { "view": "canvas" }
+}
