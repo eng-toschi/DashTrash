@@ -48,11 +48,14 @@ dispositivos. Uso privado — entre amigos, sem publicação nas lojas.
 - Participantes: com conta (sincronizam) e "fantasmas" (alguém que não instalou o app, mas
   participa das contas).
 - Despesas: descrição, valor, moeda, data, categoria, nota, foto de recibo, **um pagador**.
-- Divisão **igual** (entre todos ou entre um subconjunto) e por **valor exato**.
+- Divisão **igual** (entre todos ou entre um subgrupo) e por **valor exato**.
+- **Subgrupos salvos**: quem esteve junto no jantar de ontem vira um atalho para o de hoje.
 - Multi-moeda com taxa de câmbio fixada por despesa + cache de cotações + taxa manual offline.
 - Saldos por pessoa, em tempo real, na moeda-base.
 - Acerto de contas com simplificação de dívidas + registro de pagamentos.
-- Convite por link/QR, sync entre dispositivos, tempo real quando online.
+- Convite por link/QR e **vinculação** do participante fantasma à conta de quem aceita.
+- Sync entre dispositivos, tempo real quando online.
+- **Fechamento da viagem**: total gasto, gasto por pessoa e a lista final de quem paga a quem.
 - Exportar CSV e compartilhar resumo.
 - pt-BR e en, tema claro/escuro, acessibilidade.
 
@@ -158,6 +161,7 @@ CREATE TABLE participants (
   user_id      TEXT,                       -- null = "fantasma", não instalou o app
   avatar_seed  TEXT NOT NULL,
   email        TEXT,
+  merged_into  TEXT REFERENCES participants(id),  -- ver §7.2: duplicata absorvida por outro
   archived_at  TEXT,                       -- sai das novas divisões, permanece no histórico
   deleted_at   TEXT,
   lamport INTEGER NOT NULL DEFAULT 0, actor_id TEXT NOT NULL, updated_at TEXT NOT NULL
@@ -167,7 +171,7 @@ CREATE TABLE expenses (
   id           TEXT PRIMARY KEY,
   trip_id      TEXT NOT NULL REFERENCES trips(id),
   description  TEXT NOT NULL,
-  category     TEXT NOT NULL DEFAULT 'other',
+  category     TEXT NOT NULL DEFAULT 'other',   -- ver lista fechada abaixo
   amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
   currency     TEXT NOT NULL,              -- moeda em que se gastou
   fx_rate_ppm  INTEGER NOT NULL,           -- taxa p/ moeda-base × 1e6 (inteiro), fixada no lançamento
@@ -223,13 +227,30 @@ CREATE TABLE ops_outbox (
 
 CREATE TABLE sync_state (trip_id TEXT PRIMARY KEY, cursor TEXT, last_pull_at TEXT);
 
+-- uma conta não pode estar vinculada a dois participantes vivos da mesma viagem
+CREATE UNIQUE INDEX uq_participant_user ON participants(trip_id, user_id)
+  WHERE user_id IS NOT NULL AND merged_into IS NULL AND deleted_at IS NULL;
+
 CREATE INDEX idx_expenses_trip_date ON expenses(trip_id, spent_on DESC) WHERE deleted_at IS NULL;
 CREATE INDEX idx_shares_participant ON expense_shares(participant_id);
 CREATE INDEX idx_settlements_trip   ON settlements(trip_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_outbox_created     ON ops_outbox(created_at);
 ```
 
-### 5.2 Postgres (Supabase)
+### 5.2 Categorias (lista fechada)
+
+`domain/categories.ts`, cada uma com ícone e cor própria — são as que aparecem numa viagem real:
+
+`restaurant` (restaurante/bar) · `groceries` (mercado) · `lodging` (hotel/Airbnb) ·
+`transport` (táxi/Uber/metrô/trem) · `flight` (passagem aérea) · `car` (aluguel de carro,
+gasolina, pedágio, estacionamento) · `activity` (passeio/ingresso) · `shopping` ·
+`fees` (bagagem, seguro, visto, taxa de câmbio) · `other`
+
+Categoria é opcional na hora de lançar: o default é `other` e a UI **não** pode obrigar a
+escolher. Categorizar é para o relatório do fim, não para atrapalhar quem está com o cartão
+na mão no caixa do restaurante.
+
+### 5.3 Postgres (Supabase)
 
 Mesmas tabelas, mais:
 
@@ -271,7 +292,7 @@ sem se falarem.
 
 ---
 
-## 7. Divisão
+## 7. Participantes e divisão
 
 | Modo | Entrada | Validação |
 |---|---|---|
@@ -283,6 +304,58 @@ Casos que precisam funcionar:
 - O pagador pode não estar na divisão (paguei o táxi que só os outros pegaram).
 - Uma pessoa pode estar na divisão com valor 0 em `exact`.
 - Participante arquivado não aparece em novas divisões, mas continua nas antigas e no saldo.
+
+### 7.1 Quem entra na divisão (subgrupos)
+
+**Premissa de produto: o grupo se separa o tempo todo.** Metade foi ao museu, três foram jantar,
+duas dividiram um quarto. Dividir entre um subconjunto não é caso de exceção — é o dia a dia da
+viagem. Por isso o seletor "dividir entre" é elemento de primeira classe da tela de despesa,
+não um menu escondido.
+
+Requisitos:
+
+- Lista de participantes com *checkbox*, todos marcados por padrão, mais os atalhos
+  **"Todos"** e **"Só eu"**.
+- O contador some junto do valor por pessoa em tempo real: *"4 de 6 · R$ 41,25 cada"*.
+- **Subgrupos salvos.** Ao salvar uma despesa com um subconjunto, o app guarda essa combinação
+  em `trip_subgroups (id, trip_id, participant_ids, label, last_used_at)`. Nas próximas
+  despesas, as 3 combinações mais recentes aparecem como chips no topo do seletor
+  (*"Ana, Bruno, Carla"*), com opção de dar um nome (*"turma do jantar"*).
+  Sem isso, remarcar as mesmas 4 pessoas em 15 despesas seguidas é o que faz alguém desistir
+  do app no terceiro dia de viagem.
+- O último subgrupo usado **não** vira o default da próxima despesa — o default é sempre
+  "todos". Um default grudento erra silenciosamente e corrompe o saldo; o atalho explícito
+  custa um toque e não erra.
+
+### 7.2 Convite e vinculação (fantasma → conta)
+
+Ao criar a viagem, você cadastra todo mundo só pelo nome. Cada nome vira um participante
+**fantasma** (`user_id IS NULL`) — já dá para lançar despesas em nome dele imediatamente,
+sem esperar ninguém instalar nada. O convite é um segundo passo, opcional e assíncrono.
+
+**O problema que isso cria** (e que precisa estar resolvido no código, não na cabeça do
+usuário): a Ana já tem 12 despesas ligadas ao fantasma "Ana" quando finalmente aceita o
+convite. Se aceitar criar um participante novo, a viagem passa a ter duas Anas, e o saldo da
+verdadeira fica errado — que é a pior falha possível neste app.
+
+Regras:
+
+1. **Convite direcionado (preferido).** O link é gerado *a partir de um participante*:
+   `trip_invites.participant_id` aponta para o fantasma. Quem aceita é vinculado àquele
+   participante — `participants.user_id = auth.uid()` — e herda todo o histórico. Nenhuma
+   linha nova é criada.
+2. **Convite genérico** (link/QR da viagem, o caso da mesa do restaurante). Ao entrar, o app
+   **obriga** a escolher: *"Quem é você?"*, listando os fantasmas ainda não vinculados, com
+   a opção "sou novo aqui". Não existe entrada silenciosa.
+3. **Guarda-corpo:** índice único impede o mesmo `user_id` em dois participantes vivos da
+   mesma viagem. A tentativa falha com mensagem clara, não com registro duplicado.
+4. **Mesclar duplicatas** (`mergeParticipants(loser, winner)`), para quando alguém escapou
+   pelas regras acima: reatribui `expense_shares`, `expenses.paid_by` e `settlements` do
+   perdedor para o vencedor, grava `merged_into` no perdedor e marca seu `deleted_at`.
+   É uma Op sincronizável como qualquer outra, aplicada **em transação única**. Se os dois
+   participarem da mesma despesa, as partes são **somadas** (nunca duplicadas nem descartadas).
+   `Σ saldos = 0` continua valendo depois da mesclagem — isso é um teste, não uma esperança.
+5. Convite expira em 7 dias, é revogável e tem limite de usos (§12).
 
 ---
 
@@ -380,8 +453,16 @@ Toda tela precisa dos **quatro estados**: carregando (skeleton, não spinner cen
 6. **Detalhe da despesa.** Quem pagou, quem deve quanto, taxa de câmbio usada (editável, com
    badge se manual), recibo, excluir com undo de 5s.
 7. **Saldos.** Barra por pessoa, total da viagem, média por pessoa, "você" destacado.
-8. **Acertar contas.** "Ana paga R$ 87,30 a Bruno", toggle simplificado/real, "marcar como pago"
-   por linha, compartilhar resumo.
+8. **Fechamento da viagem** — a tela que justifica o app existir. Três blocos:
+   **(a) Resumo:** total gasto na viagem, gasto por pessoa, quebra por categoria
+   (hotel, restaurante, transporte…) e por moeda, com a taxa usada em cada conversão.
+   **(b) Quem paga a quem:** a lista final de transferências — *"Ana paga R$ 87,30 a Bruno"* —
+   com toggle simplificado/dívidas reais (§9) e "marcar como pago" por linha.
+   **(c) Encerrar:** disponível quando todo mundo está zerado; arquiva a viagem e mantém tudo
+   consultável. Se ainda houver saldo aberto, o botão explica exatamente o que falta em vez de
+   ficar apenas desabilitado.
+   O resumo é compartilhável como texto e imagem (é o que vai para o grupo do WhatsApp) e
+   exportável em CSV.
 9. **Participantes.** Adicionar, renomear, arquivar. **Remover só se saldo zero e sem despesas** —
    caso contrário, arquivar. Isso é o que impede corromper o saldo do grupo inteiro.
 10. **Convite.** `rachei://join/{token}` + link universal + **QR code** — o caso real é a mesa
@@ -443,6 +524,15 @@ navegam tudo; layout não quebra em `fontScale` 1.5; contraste AA; respeitar
 - Viagem multi-moeda (BRL base, gastos em JPY, EUR, USD) → `Σ saldos === 0`.
 - Simplificação com 5 pessoas → ≤ 4 transferências, saldos preservados.
 - Settlement parcial mantém o resto devido.
+- **Subgrupo:** jantar dividido entre 4 de 6 participantes → os 2 ausentes não são afetados
+  em nada, e `Σ saldos === 0`.
+- **Mesclagem de participante:** duas "Anas" com despesas, acertos e uma despesa em comum →
+  após `mergeParticipants`, o saldo da Ana resultante é a soma exata dos dois, nada é
+  duplicado nem perdido, e `Σ saldos === 0`.
+- **Vinculação:** aceitar convite direcionado herda as 12 despesas do fantasma; aceitar sem
+  escolher fantasma não é possível.
+- Cenário de fechamento completo: 6 pessoas, 20 despesas em 3 moedas, subgrupos variados,
+  2 acertos parciais → soma das transferências sugeridas quita todos os saldos exatamente.
 - Property-based geral: para qualquer viagem gerada aleatoriamente, `Σ saldos === 0`.
 
 ### `sync/`
@@ -455,9 +545,12 @@ navegam tudo; layout não quebra em `fontScale` 1.5; contraste AA; respeitar
 
 ### E2E (Maestro)
 
-1. Criar viagem → 3 participantes → 3 despesas → conferir saldos → acertar → tudo zerado.
+1. **Viagem completa:** criar viagem em EUR → 4 participantes por nome → jantar dividido entre
+   3 deles → hotel entre todos → táxi pago por outra pessoa → conferir saldos → fechamento →
+   marcar transferências como pagas → tudo zerado → encerrar viagem.
 2. **Modo avião:** criar despesa offline, matar o app, reabrir, voltar online, confirmar sync.
-3. **Convite:** dispositivo B entra pelo link e vê as despesas do A.
+3. **Convite e vinculação:** dispositivo B entra pelo link, escolhe "sou a Ana", e vê as
+   despesas que já estavam lançadas em nome dela — sem virar uma segunda Ana.
 4. **Multi-moeda:** gasto em JPY numa viagem com base BRL, taxa manual offline, revisão depois.
 
 ---
@@ -471,10 +564,10 @@ Cada fase termina com `npm run verify` verde e um commit. Não avance com teste 
 | **0** | Expo + TS strict + lint + Vitest + estrutura + CI | `verify` roda e passa em CI |
 | **1** | `domain/` completo: money, allocate, equal/exact, fx, balance, settle — **puro, sem UI** | Toda a §13 `domain/` verde. **É a fase mais importante do projeto**: acerte aqui e o resto é tela |
 | **2** | SQLite + Drizzle + migrações + repositórios + comandos com outbox | Teste de migração e de atomicidade (estado + op na mesma transação) |
-| **3** | Design system + navegação + viagens/despesas/saldos, **100% offline, sem backend** | E2E #1 passa; app inteiro usável sem rede |
+| **3** | Design system + navegação + viagens/despesas/saldos + seletor de subgrupo e subgrupos salvos, **100% offline, sem backend** | E2E #1 passa; app inteiro usável sem rede |
 | **4** | Multi-moeda na UI: seletor, cotação, cache, taxa manual, badge | E2E #4 passa |
-| **5** | Acerto de contas (dois modos) + settlements + compartilhar resumo | E2E #1 fecha em saldo zero |
-| **6** | Supabase: auth por magic link, schema, RLS, sync worker, realtime, convites, QR, deep links | E2E #2 e #3 passam; teste de RLS negando acesso cruzado |
+| **5** | Fechamento da viagem: resumo por categoria/moeda, quem paga a quem (dois modos), settlements, compartilhar, CSV, encerrar | E2E #1 fecha em saldo zero e a viagem encerra |
+| **6** | Supabase: auth por magic link, schema, RLS, sync worker, realtime, convites direcionados, QR, deep links, **vinculação e mesclagem de participante** | E2E #2 e #3 passam; teste de RLS negando acesso cruzado; teste de mesclagem preservando saldos |
 | **7** | Recibos + Storage, notificações, exportar CSV, i18n, a11y, tema escuro, polimento | Upload retomável após queda de rede; `fontScale` 1.5 sem quebra |
 | **8** | Sentry, diagnóstico, EAS Build, ícone, splash, distribuição | APK instalável + build no TestFlight |
 
@@ -526,3 +619,8 @@ Um app útil já existe no fim da Fase 3 — dá para usar numa viagem sozinho a
 6. **Não peça login antes de entregar valor.** Deixe criar a primeira viagem local.
 7. **Não ordene ops pelo relógio do dispositivo.** Use Lamport.
 8. **Não assuma 2 casas decimais.** JPY não tem centavo.
+9. **Não deixe o convite criar um participante novo em silêncio.** Duas Anas na mesma viagem
+   é a falha mais destrutiva possível aqui: o saldo fica errado e ninguém percebe até a hora
+   de acertar as contas. Escolher "quem é você" é obrigatório (§7.2).
+10. **Não faça o último subgrupo virar o default.** O default é sempre "todos"; o atalho é
+    explícito. Default grudento erra calado.
