@@ -83,7 +83,7 @@ adicionar modos de divisão extras — a complexidade cortada é o que torna ess
 |---|---|---|
 | Framework | **Expo + React Native**, TypeScript strict | Um código, dois sistemas; EAS resolve os builds |
 | Navegação | **Expo Router** | Deep link de convite quase de graça |
-| Banco local | **expo-sqlite** + **Drizzle ORM** + migrações versionadas | SQL de verdade, offline-first, migração determinística |
+| Banco local | **expo-sqlite** + SQL direto atrás de uma porta fina + migrações numeradas | SQL de verdade, offline-first, migração determinística, sem acoplar a versão do driver nativo (ver `docs/DECISIONS.md`) |
 | Backend | **Supabase** (Postgres + Auth + Realtime + Storage + RLS) | Auth e RLS por grupo prontos; realtime para sync |
 | Auth | **Magic link por e-mail** (Supabase), sem senha | Zero atrito, zero conta de desenvolvedor extra. Sem Apple/Google Sign In — só são exigidos por loja, e não vamos publicar |
 | Estado servidor | TanStack Query (só para o que vem da rede) | Retry/cache prontos |

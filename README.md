@@ -11,7 +11,7 @@ App de divisão de despesas de viagem para iPhone e Android. Em construção.
 |---|---|---|
 | 0 | Base do projeto, TypeScript strict, lint, testes | ✅ |
 | 1 | `src/domain/` — dinheiro, divisão, câmbio, saldos, fechamento | ✅ |
-| 2 | SQLite + Drizzle + outbox | pendente |
+| 2 | SQLite, migrações, repositórios e comandos com outbox | ✅ |
 | 3 | App Expo: telas, offline completo | pendente |
 | 4–8 | Multi-moeda na UI, fechamento, sync, distribuição | pendente |
 
@@ -32,7 +32,7 @@ npx vitest run --coverage
 
 ## O que já funciona
 
-`src/domain/` está completo e testado (103 testes, cobertura acima de 90%):
+`src/domain/` e `src/db/` estão completos e testados (180 testes):
 
 - **`money.ts`** — valores sempre inteiros; `allocate` reparte sem perder centavo, com
   desempate determinístico por id; leitura da entrada do usuário sensível ao locale;
@@ -40,4 +40,14 @@ npx vitest run --coverage
 - **`fx.ts`** — conversão em BigInt com arredondamento correto, taxa fixada por despesa.
 - **`split.ts`** — divisão igual (inclusive entre um subgrupo) e por valor exato.
 - **`balance.ts`** — saldos por pessoa, com `Σ saldos = 0` garantido por construção.
-- **`settle.ts`** — fechamento nos dois modos: simplificado e dívidas reais.
+- **`settle.ts`** — fechamento nos dois modos: simplificado e dívidas reais, e em que moedas
+  cada transferência pode ser quitada.
+- **`payment.ts`** — formas de pagamento e IOF, com a alíquota congelada na despesa.
+- **`pix.ts`** — chave Pix validada e "copia e cola" gerado offline (padrão EMV do Banco Central).
+- **`db/`** — migrações numeradas, repositórios que montam o razão da viagem, e a porta de acesso
+  ao SQLite (`better-sqlite3` nos testes, `expo-sqlite` no app).
+- **`sync/`** — relógio de Lamport e outbox: estado e operação sempre na mesma transação.
+- **`commands/`** — criar e editar viagem, participantes, despesas e acertos; vincular convite;
+  mesclar duplicatas.
+
+As telas desenhadas estão em `design/`.

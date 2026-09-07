@@ -92,3 +92,32 @@ a quitar numa moeda de granularidade mais grossa — não é bug e não dá para
 
 O app grava o acerto pelo valor realmente entregue e deixa o resto aparecer no saldo, em vez de
 "ajustar" a diferença em silêncio. Esconder resíduo é como se perde a confiança na conta.
+
+## 2026-09-07 — SQL direto atrás de uma porta, em vez de Drizzle ORM
+
+**Desvio do spec.** A §3 previa Drizzle ORM. Ao montar a Fase 2 ficou claro que ele resolveria
+pouco e custaria caro aqui:
+
+- o app precisa de dois drivers (`expo-sqlite` no aparelho, `better-sqlite3` nos testes), e a
+  compatibilidade entre a versão do Drizzle e a do SDK do Expo é uma das coisas que mais quebram
+  em projeto React Native — sem ganho para consultas simples;
+- as migrações precisam rodar dentro do app, e SQL numerado é o formato mais previsível para
+  isso: o mesmo texto roda nos dois drivers, sem tradutor no meio;
+- as consultas deste app são CRUD e dois joins. O que o Drizzle daria em tipagem, os tipos de
+  linha em `repositories.ts` dão de forma explícita.
+
+O que ficou no lugar: `db/driver.ts` (uma interface de seis métodos, com transação por SAVEPOINT
+para os comandos poderem se compor), `db/migrations.ts` (SQL numerado, nunca editado depois de
+existir) e `db/repositories.ts` (consultas junto dos tipos de linha).
+
+O custo assumido: ler uma linha do SQLite é uma **afirmação** de formato, não uma verificação.
+Está marcado no código onde isso acontece. Se as consultas crescerem muito, Drizzle volta à mesa.
+
+## 2026-09-07 — Estado e operação na mesma transação, sempre
+
+Todo comando de escrita grava a mudança e a operação do outbox numa transação só. Sem isso, uma
+falha no meio deixaria uma despesa que existe no aparelho e nunca chega aos outros — ou o
+contrário. Há teste que sabota a segunda escrita e confirma que nada sobra.
+
+Consequência de projeto: o outbox mora no SQLite, não em memória, e a UI nunca espera a rede
+para dar a despesa como salva.
