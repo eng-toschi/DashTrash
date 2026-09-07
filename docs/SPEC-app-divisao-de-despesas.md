@@ -380,9 +380,19 @@ Para cada participante `p`, na moeda-base:
 
 ```
 pago(p)  = Σ despesas onde paid_by = p (convertidas) + Σ settlements onde from_id = p
-deve(p)  = Σ shares.computed_cents de p (convertidos) + Σ settlements onde to_id = p
+deve(p)  = Σ partes de p em moeda-base            + Σ settlements onde to_id = p
 saldo(p) = pago(p) − deve(p)
 ```
+
+**Como converter as partes (isto não é detalhe):** converter a parte de cada pessoa
+individualmente QUEBRA o invariante. O pagador é creditado por `converter(total)`, enquanto os
+devedores são debitados por `Σ converter(parte_i)` — e as duas contas diferem por centavos de
+arredondamento. O certo é converter o **total** uma vez e **reparticionar** esse total já
+convertido entre as pessoas, usando as partes originais como peso (`allocate`).
+
+Exemplo real, coberto por teste de regressão: ¥100 a 0,0375, divididos entre 3. Parte a parte dá
+128 + 124 + 124 = 376; o total convertido é 375. Um centavo nascido do nada, que desequilibra o
+grupo e ninguém consegue explicar no fim da viagem.
 
 `saldo > 0` → tem a receber. `< 0` → deve. **Invariante: `Σ saldo(p) = 0` exatamente.**
 Se der ≠ 0 (só por bug de arredondamento em conversão), o app **não disfarça**: loga em Sentry
@@ -404,6 +414,11 @@ enquanto houver ambos:
 
 ≤ n−1 transferências. Não é o ótimo global (é NP-difícil) e isso é aceitável — documentar no
 código. Empates ordenados por `participant_id` para ser determinístico.
+
+**Cuidado com a promessa na tela:** por ser heurística, existem casos em que este modo gera
+*mais* transferências que o de dívidas reais (há um contraexemplo com 6 pessoas nos testes:
+5 contra 4). A UI pode chamá-lo de "simplificado", mas **não** pode afirmar que ele sempre
+reduz o número de pagamentos.
 
 **Dívidas reais** (toggle) — mantém os pares credor/devedor derivados das despesas, sem
 redirecionar pagamento entre pessoas que não interagiram.
