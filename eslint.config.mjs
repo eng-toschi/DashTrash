@@ -9,7 +9,7 @@ export default defineConfig(
   {
     languageOptions: {
       parserOptions: {
-        projectService: { allowDefaultProject: ['eslint.config.mjs', 'babel.config.js', 'metro.config.js'] },
+        projectService: { allowDefaultProject: ['babel.config.js', 'metro.config.js'] },
         tsconfigRootDir: import.meta.dirname,
       },
     },
