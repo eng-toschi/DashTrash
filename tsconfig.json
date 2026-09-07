@@ -1,4 +1,8 @@
 {
+  // O Expo reescreve este arquivo ao iniciar se o `extends` não estiver aqui —
+  // e o arquivo modificado trava o próximo `git pull`. Melhor já vir assim.
+  // As opções abaixo sobrescrevem a base: o rigor do projeto é mantido.
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "ESNext.Intl"],
