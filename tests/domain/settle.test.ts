@@ -3,7 +3,7 @@ import fc from 'fast-check';
 import { computeBalances, type TripLedger } from '@/domain/balance.js';
 import { sumCents } from '@/domain/money.js';
 import { DomainError } from '@/domain/result.js';
-import { applyTransfers, computeRealDebts, simplifyDebts } from '@/domain/settle.js';
+import { applyTransfers, computeRealDebts, paymentOptions, simplifyDebts } from '@/domain/settle.js';
 import { ledgerArbitrary } from './_trips.js';
 
 const zeroed = (ledger: TripLedger, transfers: readonly { fromId: string; toId: string; cents: number }[]): boolean =>
@@ -340,5 +340,62 @@ describe('propriedades do fechamento', () => {
     const transfers = simplifyDebts(balances);
     expect(transfers).toHaveLength(5);
     expect(applyTransfers(balances, transfers).every((b) => b.cents === 0)).toBe(true);
+  });
+});
+
+describe('em que moeda pagar', () => {
+  const transfer = { fromId: 'bruno', toId: 'ana', cents: 190_240 };
+
+  it('oferece a moeda-base primeiro, e depois as da viagem', () => {
+    const options = paymentOptions(transfer, 'BRL', [
+      { currency: 'JPY', ratePpm: 37_000 },
+      { currency: 'EUR', ratePpm: 6_200_000 },
+    ]);
+
+    expect(options).toEqual([
+      { currency: 'BRL', cents: 190_240, ratePpm: 1_000_000 },
+      { currency: 'JPY', cents: 51_416, ratePpm: 37_000 },
+      { currency: 'EUR', cents: 30_684, ratePpm: 6_200_000 },
+    ]);
+  });
+
+  it('não repete a moeda-base quando ela vem na lista de alternativas', () => {
+    const options = paymentOptions(transfer, 'BRL', [{ currency: 'BRL', ratePpm: 1_000_000 }]);
+    expect(options).toHaveLength(1);
+  });
+
+  it('a taxa devolvida é a que fecha o saldo ao gravar o acerto', () => {
+    const [, emIenes] = paymentOptions(transfer, 'BRL', [{ currency: 'JPY', ratePpm: 37_000 }]);
+    const settlement = {
+      id: 's1',
+      fromId: transfer.fromId,
+      toId: transfer.toId,
+      amountCents: emIenes?.cents ?? 0,
+      currency: emIenes?.currency ?? 'BRL',
+      fxRatePpm: emIenes?.ratePpm ?? 1_000_000,
+    };
+
+    const ledger: TripLedger = {
+      baseCurrency: 'BRL',
+      participantIds: ['ana', 'bruno'],
+      expenses: [
+        {
+          id: 'hotel',
+          amountCents: 190_240,
+          currency: 'BRL',
+          fxRatePpm: 1_000_000,
+          paidBy: 'ana',
+          shares: [{ participantId: 'bruno', cents: 190_240 }],
+        },
+      ],
+      settlements: [settlement],
+    };
+
+    // ¥51.416 de volta a reais dá R$ 1.902,39: um centavo de diferença, que é
+    // inerente a pagar em dinheiro numa moeda mais grossa. O app mostra o resto
+    // em vez de fingir que zerou.
+    const saldos = computeBalances(ledger).balances;
+    expect(sumCents(saldos.map((b) => b.cents))).toBe(0);
+    expect(saldos.find((b) => b.participantId === 'bruno')?.cents).toBe(-1);
   });
 });

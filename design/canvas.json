@@ -8,9 +8,10 @@
     { "file": "Participantes.dc.html", "x": 980, "y": 984, "w": 390, "h": 844, "title": "Participantes e convite (tema escuro)" }
   ],
   "annotations": [
-    { "id": "nota-subgrupo", "x": 980, "y": -150, "w": 390, "text": "O seletor \"dividir entre\" é elemento de primeira classe: o grupo se separa o tempo todo. Os chips de subgrupo salvo (\"Turma do jantar\") evitam remarcar as mesmas 4 pessoas em 15 despesas seguidas." },
+    { "id": "nota-subgrupo", "x": 980, "y": -280, "w": 390, "text": "O seletor \"dividir entre\" é elemento de primeira classe: o grupo se separa o tempo todo. Os chips de subgrupo salvo (\"Turma do jantar\") evitam remarcar as mesmas 4 pessoas em 15 despesas seguidas." },
     { "id": "nota-tema", "x": 0, "y": -150, "w": 880, "text": "Direção \"grupo de amigos\": cada pessoa tem cor fixa, cantos generosos, tom informal. Quatro telas no tema claro e duas no escuro — os dois usam os mesmos tokens semânticos." },
-    { "id": "nota-fechamento", "x": 490, "y": 1874, "w": 390, "text": "O botão de encerrar fica desabilitado explicando o que falta, em vez de só ficar cinza. O modo simplificado não promete menos transferências — é heurística (ver docs/DECISIONS.md)." }
+    { "id": "nota-fechamento", "x": 490, "y": 1874, "w": 390, "text": "Pix com o valor já embutido no código, gerado no aparelho e sem rede. Ao lado, a opção de quitar em dinheiro na moeda da viagem. O botão de encerrar explica o que falta em vez de só ficar cinza." },
+    { "id": "nota-iof", "x": 980, "y": -150, "w": 390, "text": "IOF de 3,5% decomposto na tela (R$ 458,80 + R$ 16,06) e a cotação é a do DIA DO GASTO. As duas alíquotas ficam congeladas na despesa: mudam por decreto, e viagem fechada não pode mudar de valor sozinha." }
   ],
   "launch": { "view": "canvas" }
 }

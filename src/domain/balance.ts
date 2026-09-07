@@ -14,7 +14,7 @@
  * entre as pessoas, usando as partes originais como peso. Assim a soma das partes
  * em moeda-base é, por construção, igual ao total em moeda-base.
  */
-import { convertCents } from './fx.js';
+import { convertCents, convertCentsWithSurcharge } from './fx.js';
 import { allocate, sumCents, type CurrencyCode } from './money.js';
 import { invariant } from './result.js';
 import type { Share } from './split.js';
@@ -25,6 +25,8 @@ export interface TripExpense {
   readonly currency: CurrencyCode;
   /** Taxa para a moeda-base, fixada no lançamento (§8). */
   readonly fxRatePpm: number;
+  /** IOF em ppm, também congelado no lançamento (§8.1). Ausente = 0. */
+  readonly iofPpm?: number;
   readonly paidBy: string;
   /** Partes na moeda da despesa; devem somar `amountCents`. */
   readonly shares: readonly Share[];
@@ -63,7 +65,10 @@ export interface BalanceReport {
 }
 
 export interface ExpenseInBase {
+  /** Custo real em moeda-base, IOF incluído. É o que o pagador desembolsou. */
   readonly totalCents: number;
+  /** Quanto do total é IOF. Só para exibição. */
+  readonly iofCents: number;
   readonly shares: readonly Share[];
 }
 
@@ -74,9 +79,20 @@ export function expenseInBase(expense: TripExpense, baseCurrency: CurrencyCode):
     `Despesa ${expense.id}: as partes não somam o total.`,
   );
 
-  const totalCents = convertCents(expense.amountCents, expense.currency, baseCurrency, expense.fxRatePpm);
+  const iofPpm = expense.iofPpm ?? 0;
+  const totalCents = convertCentsWithSurcharge(
+    expense.amountCents,
+    expense.currency,
+    baseCurrency,
+    expense.fxRatePpm,
+    iofPpm,
+  );
+  const netCents = convertCents(expense.amountCents, expense.currency, baseCurrency, expense.fxRatePpm);
 
   // Reparticiona o total JÁ convertido — nunca converte parte por parte.
+  // O IOF entra no total ANTES do rateio, então é dividido na mesma proporção:
+  // quem consumiu mais paga mais imposto, e o pagador é reembolsado pelo que a
+  // fatura dele vai cobrar de verdade.
   const allocated = allocate(
     totalCents,
     expense.shares.map((s) => ({ id: s.participantId, weight: s.cents })),
@@ -84,6 +100,7 @@ export function expenseInBase(expense: TripExpense, baseCurrency: CurrencyCode):
 
   return {
     totalCents,
+    iofCents: totalCents - netCents,
     shares: allocated.map((a) => ({ participantId: a.id, cents: a.cents })),
   };
 }
@@ -125,4 +142,9 @@ export function computeBalances(ledger: TripLedger): BalanceReport {
 /** Total gasto na viagem, em moeda-base. Acertos não entram: não são despesa. */
 export function totalSpent(ledger: TripLedger): number {
   return sumCents(ledger.expenses.map((e) => expenseInBase(e, ledger.baseCurrency).totalCents));
+}
+
+/** Quanto a viagem pagou de IOF, para a linha do fechamento. */
+export function totalIof(ledger: TripLedger): number {
+  return sumCents(ledger.expenses.map((e) => expenseInBase(e, ledger.baseCurrency).iofCents));
 }

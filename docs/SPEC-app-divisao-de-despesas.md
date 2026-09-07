@@ -50,7 +50,10 @@ dispositivos. Uso privado — entre amigos, sem publicação nas lojas.
 - Despesas: descrição, valor, moeda, data, categoria, nota, foto de recibo, **um pagador**.
 - Divisão **igual** (entre todos ou entre um subgrupo) e por **valor exato**.
 - **Subgrupos salvos**: quem esteve junto no jantar de ontem vira um atalho para o de hoje.
-- Multi-moeda com taxa de câmbio fixada por despesa + cache de cotações + taxa manual offline.
+- Multi-moeda com **a cotação do dia do gasto** fixada por despesa + cache de cotações + taxa manual offline.
+- **IOF** por forma de pagamento, com alíquota congelada na despesa e visível na decomposição.
+- **Chave Pix** por participante e "copia e cola" gerado offline no fechamento.
+- No fechamento, **pagar em reais ou em outra moeda** da viagem.
 - Saldos por pessoa, em tempo real, na moeda-base.
 - Acerto de contas com simplificação de dívidas + registro de pagamentos.
 - Convite por link/QR e **vinculação** do participante fantasma à conta de quem aceita.
@@ -161,6 +164,10 @@ CREATE TABLE participants (
   user_id      TEXT,                       -- null = "fantasma", não instalou o app
   avatar_seed  TEXT NOT NULL,
   email        TEXT,
+  pix_key      TEXT,                      -- normalizada; dado pessoal, ver §12
+  pix_key_kind TEXT,                      -- cpf | cnpj | email | phone | random
+  pix_name     TEXT,                      -- nome do recebedor no BR Code
+  pix_city     TEXT,
   merged_into  TEXT REFERENCES participants(id),  -- ver §7.2: duplicata absorvida por outro
   archived_at  TEXT,                       -- sai das novas divisões, permanece no histórico
   deleted_at   TEXT,
@@ -176,6 +183,9 @@ CREATE TABLE expenses (
   currency     TEXT NOT NULL,              -- moeda em que se gastou
   fx_rate_ppm  INTEGER NOT NULL,           -- taxa p/ moeda-base × 1e6 (inteiro), fixada no lançamento
   fx_manual    INTEGER NOT NULL DEFAULT 0, -- 1 = taxa digitada pelo usuário (badge na UI)
+  fx_as_of     TEXT,                       -- data da cotação usada; != spent_on => badge "cotação de"
+  payment_method TEXT NOT NULL DEFAULT 'no_fx',  -- ver §8.1
+  iof_ppm      INTEGER NOT NULL DEFAULT 0, -- alíquota × 1e6, CONGELADA no lançamento
   spent_on     TEXT NOT NULL,
   paid_by      TEXT NOT NULL REFERENCES participants(id),   -- um pagador (ver §2, cortes)
   split_type   TEXT NOT NULL CHECK (split_type IN ('equal','exact')),
@@ -237,7 +247,14 @@ CREATE INDEX idx_settlements_trip   ON settlements(trip_id) WHERE deleted_at IS 
 CREATE INDEX idx_outbox_created     ON ops_outbox(created_at);
 ```
 
-### 5.2 Categorias (lista fechada)
+### 5.2 Formas de pagamento (lista fechada)
+
+`credit_card` (cartão de crédito internacional) · `debit_card` (débito ou pré-pago
+internacional) · `cash_fx` (espécie comprada em casa de câmbio) · `global_account`
+(Wise, Nomad e afins, para gastos) · `no_fx` (pago em reais, ou por quem mora fora — sem
+operação de câmbio brasileira).
+
+### 5.3 Categorias (lista fechada)
 
 `domain/categories.ts`, cada uma com ícone e cor própria — são as que aparecem numa viagem real:
 
@@ -250,7 +267,7 @@ Categoria é opcional na hora de lançar: o default é `other` e a UI **não** p
 escolher. Categorizar é para o relatório do fim, não para atrapalhar quem está com o cartão
 na mão no caixa do restaurante.
 
-### 5.3 Postgres (Supabase)
+### 5.4 Postgres (Supabase)
 
 Mesmas tabelas, mais:
 
@@ -369,6 +386,31 @@ Regras:
 - Sem rede e sem cache: campo de taxa editável, despesa marcada com badge "taxa manual"
   (`fx_manual = 1`), e um aviso não-bloqueante para revisar depois.
 - A taxa é **sempre editável** no detalhe da despesa.
+- **A cotação é a do dia do gasto, não a de hoje.** Ao lançar hoje o jantar de anteontem, o app
+  procura a cotação de anteontem; sem ela, cai na mais recente **anterior** e marca a despesa
+  com "cotação de 14/03". Nunca usa cotação posterior ao gasto — seria adivinhar o passado com
+  informação do futuro. (`selectRateForDate`, testado.)
+
+### 8.1 IOF
+
+Toda compra em moeda estrangeira feita por um brasileiro passa por uma operação de câmbio, e o
+IOF entra aí. Ignorar isso faz o pagador ser reembolsado por menos do que a fatura dele vai
+cobrar — 3,5% de erro sistemático a favor de quem não pagou.
+
+- Alíquota guardada em `iof_ppm` (3,5% = 35_000) e **congelada no lançamento**, exatamente como
+  o câmbio: o IOF muda por decreto, e uma viagem fechada não pode mudar de valor sozinha.
+- Padrões sugeridos por forma de pagamento (§5.2), **todos editáveis**: 3,5% para cartão de
+  crédito, débito, pré-pago, espécie e conta global para gastos; 0 para `no_fx` e para qualquer
+  despesa na própria moeda-base. A tabela é palpite de tela, com a data da conferência ao lado —
+  não é fonte da verdade fiscal.
+- **O IOF entra no rateio**, na mesma proporção do consumo: ele é parte do que o pagador
+  desembolsou de verdade. É o padrão; um dia isso pode virar opção por viagem.
+- A conta é feita numa multiplicação só (câmbio × IOF, um arredondamento). Somar o imposto
+  depois da conversão cria centavo do nada.
+- A tela mostra a decomposição, sempre: `¥12.400 = R$ 458,80 + IOF R$ 16,06 = R$ 474,86`.
+- **O valor continua sendo estimativa até a fatura chegar** — o cartão fecha o câmbio na data de
+  processamento, com spread próprio. Por isso a taxa é editável depois, e por isso a despesa
+  guarda `fx_as_of`.
 - `convert`: `baseCents = round(cents × rate_ppm / 1_000_000)` ajustando o expoente entre moedas
   de casas diferentes; arredondamento *half away from zero*.
 
@@ -424,6 +466,36 @@ reduz o número de pagamentos.
 redirecionar pagamento entre pessoas que não interagiram.
 
 Marcar como pago cria um `settlement`. Nunca apaga despesa.
+
+### 9.1 Em que moeda pagar
+
+Cada transferência do fechamento pode ser quitada na **moeda-base** (o caso normal no Brasil:
+Pix em reais) ou em **qualquer moeda da viagem** — metade dos acertos acontece ainda na viagem,
+em dinheiro, na moeda do lugar.
+
+`paymentOptions()` devolve a moeda-base primeiro e depois as alternativas, cada uma com a taxa
+que deve ser gravada no acerto. **Atenção ao resíduo:** pagar R$ 1.902,40 em ienes dá ¥51.416,
+que de volta a reais são R$ 1.902,39 — um centavo, inerente a quitar numa moeda de granularidade
+mais grossa. O app mostra o resto em vez de fingir que zerou (§9), e o saldo restante fica
+visível para quem quiser acertar.
+
+### 9.2 Pix
+
+Cada participante pode cadastrar **uma chave Pix** (CPF, CNPJ, e-mail, telefone ou aleatória).
+CPF e CNPJ são validados pelos dígitos verificadores no cadastro — chave errada, sem isso, só
+aparece na hora de pagar, quando o grupo já se separou.
+
+No fechamento, cada transferência em reais ganha um **"copia e cola"** com o valor já embutido,
+mais o QR code equivalente. Ninguém digita R$ 1.902,40 errado na pressa.
+
+- O BR Code é montado **no aparelho**, pelo padrão EMV do Banco Central, com CRC-16/CCITT-FALSE.
+  Sem API, sem intermediário, sem rede: dá para fechar as contas no aeroporto, sem sinal.
+- Pix é só em BRL. Em transferência de outra moeda, o app oferece a chave para copiar, mas não
+  gera BR Code.
+- A chave aparece **mascarada** na lista do grupo (`***.444.777-**`), com a íntegra só no momento
+  de copiar.
+- O app **não movimenta dinheiro** e não confirma pagamento: "marcar como pago" é declaração de
+  quem pagou, não integração bancária. A tela precisa deixar isso claro.
 
 ---
 
@@ -505,6 +577,9 @@ cold start com link deve chegar ao destino certo depois do login.
 ## 12. Segurança, privacidade e resiliência
 
 - Sessão no **SecureStore** (Keychain/Keystore), nunca em AsyncStorage.
+- **Chave Pix é dado pessoal** (muitas vezes o CPF). Visível apenas para participantes da mesma
+  viagem, mascarada por padrão na lista, nunca em log, nunca no Sentry, e removida junto com a
+  conta. Sai também de qualquer exportação CSV compartilhada.
 - RLS em tudo; validar no servidor o mesmo que o cliente valida.
 - Convite: token de alta entropia, expira em 7 dias, revogável, limite de usos.
 - Recibos em bucket privado com URL assinada de curta duração.
@@ -548,7 +623,18 @@ navegam tudo; layout não quebra em `fontScale` 1.5; contraste AA; respeitar
   escolher fantasma não é possível.
 - Cenário de fechamento completo: 6 pessoas, 20 despesas em 3 moedas, subgrupos variados,
   2 acertos parciais → soma das transferências sugeridas quita todos os saldos exatamente.
-- Property-based geral: para qualquer viagem gerada aleatoriamente, `Σ saldos === 0`.
+- **IOF:** ¥12.400 a 0,037 com 3,5% → R$ 474,86, dos quais R$ 16,06 de imposto; a decomposição
+  fecha (`líquido + IOF = total`) para qualquer valor e alíquota; o IOF é rateado na mesma
+  proporção do consumo; despesa sem IOF se comporta como antes.
+- **Cotação do dia:** usa a do dia do gasto; sem ela, a anterior mais recente marcada como
+  `stale`; nunca uma posterior.
+- **Pix:** CRC bate com o vetor canônico `123456789 → 0x29B1`; CPF e CNPJ validados por dígito
+  verificador; BR Code gerado tem CRC válido, valor com duas casas, moeda 986, país BR, acento
+  removido do nome e da cidade, corte nos limites do padrão, e adulteração é detectada.
+- **Moeda do acerto:** as opções trazem a base primeiro; a taxa devolvida fecha o saldo ao gravar
+  o acerto, com o resíduo de arredondamento visível em vez de escondido.
+- Property-based geral: para qualquer viagem gerada aleatoriamente (com IOF sorteado),
+  `Σ saldos === 0`.
 
 ### `sync/`
 
@@ -580,8 +666,8 @@ Cada fase termina com `npm run verify` verde e um commit. Não avance com teste 
 | **1** | `domain/` completo: money, allocate, equal/exact, fx, balance, settle — **puro, sem UI** | Toda a §13 `domain/` verde. **É a fase mais importante do projeto**: acerte aqui e o resto é tela |
 | **2** | SQLite + Drizzle + migrações + repositórios + comandos com outbox | Teste de migração e de atomicidade (estado + op na mesma transação) |
 | **3** | Design system + navegação + viagens/despesas/saldos + seletor de subgrupo e subgrupos salvos, **100% offline, sem backend** | E2E #1 passa; app inteiro usável sem rede |
-| **4** | Multi-moeda na UI: seletor, cotação, cache, taxa manual, badge | E2E #4 passa |
-| **5** | Fechamento da viagem: resumo por categoria/moeda, quem paga a quem (dois modos), settlements, compartilhar, CSV, encerrar | E2E #1 fecha em saldo zero e a viagem encerra |
+| **4** | Multi-moeda na UI: seletor, cotação **do dia do gasto**, cache, taxa manual, badge, forma de pagamento e IOF com decomposição visível | E2E #4 passa; a decomposição confere com a fatura |
+| **5** | Fechamento: resumo por categoria/moeda, quem paga a quem (dois modos), **escolha da moeda do pagamento**, **chave Pix e copia e cola com QR**, settlements, compartilhar, CSV, encerrar | E2E #1 fecha em saldo zero e a viagem encerra; o BR Code gerado é aceito por um app de banco real |
 | **6** | Supabase: auth por magic link, schema, RLS, sync worker, realtime, convites direcionados, QR, deep links, **vinculação e mesclagem de participante** | E2E #2 e #3 passam; teste de RLS negando acesso cruzado; teste de mesclagem preservando saldos |
 | **7** | Recibos + Storage, notificações, exportar CSV, i18n, a11y, tema escuro, polimento | Upload retomável após queda de rede; `fontScale` 1.5 sem quebra |
 | **8** | Sentry, diagnóstico, EAS Build, ícone, splash, distribuição | APK instalável + build no TestFlight |
@@ -639,3 +725,8 @@ Um app útil já existe no fim da Fase 3 — dá para usar numa viagem sozinho a
    de acertar as contas. Escolher "quem é você" é obrigatório (§7.2).
 10. **Não faça o último subgrupo virar o default.** O default é sempre "todos"; o atalho é
     explícito. Default grudento erra calado.
+11. **Não recalcule o IOF depois.** Mesma armadilha do câmbio: a alíquota muda por decreto, e
+    recalcular reescreve o passado de uma viagem já fechada.
+12. **Não some o IOF depois de converter.** Câmbio e imposto na mesma conta, um arredondamento só.
+13. **Não prometa que o app confirma o pagamento.** Ele gera o Pix e registra a declaração de
+    quem pagou; não fala com banco nenhum e não sabe se o dinheiro caiu.

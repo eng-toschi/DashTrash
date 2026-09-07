@@ -49,3 +49,46 @@ por float, nem na hora de exibir. Testado com R$ 12.345.678.901.234,56, acima da
 Um gasto em ienes convertido para reais estoura `Number.MAX_SAFE_INTEGER` no produto
 intermediário (`centavos × ppm`). `allocate` e `convertCents` fazem a conta em BigInt e só
 voltam para `number` no fim, com verificação de faixa segura.
+
+## 2026-09-07 — IOF entra no rateio, e fica congelado na despesa
+
+Uma compra em moeda estrangeira feita por um brasileiro passa por operação de câmbio, e o IOF
+incide sobre ela. Se o app converter só pelo câmbio, o pagador é reembolsado por menos do que a
+fatura dele vai cobrar — um erro sistemático de 3,5% a favor de quem não pagou.
+
+Decisões:
+
+1. O IOF **entra no total da despesa antes do rateio**, e portanto é dividido na mesma proporção
+   do consumo. Alternativa considerada e recusada por ora: deixar o imposto só com o pagador —
+   defensável quando alguém teria pago em dinheiro sem IOF, mas complica a conta e some da vista.
+   Se virar reclamação, vira opção por viagem.
+2. A alíquota é **congelada em `iof_ppm` no lançamento**, como o câmbio. O IOF muda por decreto
+   (mudou em 2025) e uma viagem encerrada não pode mudar de valor sozinha.
+3. Os padrões (3,5% para cartão de crédito, débito, pré-pago, espécie e conta global de gastos)
+   são palpite de tela, **sempre editáveis**, com a data da conferência ao lado. O app não é
+   fonte da verdade fiscal.
+4. Câmbio e imposto são uma multiplicação só, com um arredondamento. Somar o imposto depois da
+   conversão criaria centavo do nada e quebraria `Σ saldos = 0`.
+5. O valor segue sendo **estimativa até a fatura chegar** — o cartão fecha o câmbio na data de
+   processamento, com spread próprio. Por isso a taxa continua editável depois.
+
+## 2026-09-07 — Pix gerado offline, sem intermediário
+
+O "copia e cola" é montado no aparelho pelo padrão EMV do Banco Central (TLV + CRC-16/CCITT-FALSE).
+Nenhuma API, nenhum intermediário, nenhuma dependência de rede: o fechamento acontece no
+aeroporto, na fila do embarque, sem sinal.
+
+CPF e CNPJ são validados por dígito verificador no cadastro, porque uma chave errada só se
+manifesta na hora de pagar — quando o grupo já se separou. A chave aparece mascarada na lista do
+grupo; a íntegra só no momento de copiar.
+
+Limite explícito: o app **não movimenta dinheiro e não confirma pagamento**. "Marcar como pago" é
+declaração de quem pagou, não integração bancária. A tela precisa dizer isso.
+
+## 2026-09-07 — Acerto em outra moeda deixa resíduo, e ele é mostrado
+
+Pagar R$ 1.902,40 em ienes dá ¥51.416, que de volta a reais são R$ 1.902,39. O centavo é inerente
+a quitar numa moeda de granularidade mais grossa — não é bug e não dá para eliminar.
+
+O app grava o acerto pelo valor realmente entregue e deixa o resto aparecer no saldo, em vez de
+"ajustar" a diferença em silêncio. Esconder resíduo é como se perde a confiança na conta.

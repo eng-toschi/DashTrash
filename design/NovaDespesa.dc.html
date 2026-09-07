@@ -24,7 +24,7 @@
     <span style="font-size: 15px; font-weight: 600; color: transparent;">Cancelar</span>
   </div>
 
-  <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 30px 20px 24px 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 20px 18px 20px;">
     <div style="display: flex; align-items: baseline; gap: 8px;">
       <div style="display: flex; align-items: center; gap: 4px; background: #F3EEE7; border-radius: 999px; padding: 6px 12px; align-self: center;">
         <span style="font-size: 14px; font-weight: 700; color: #4A443C;">JPY</span>
@@ -32,10 +32,13 @@
       </div>
       <span class="display num" style="font-size: 52px; font-weight: 700; letter-spacing: -0.03em; line-height: 1;">12.400</span>
     </div>
-    <div style="display: flex; align-items: center; gap: 7px;">
-      <span class="num" style="font-size: 14.5px; font-weight: 600; color: #7A7168;">≈ R$ 458,80</span>
-      <span style="width: 3px; height: 3px; border-radius: 999px; background: #C9BFB2;"></span>
-      <span class="num" style="font-size: 13px; font-weight: 600; color: #A79C90;">taxa 0,037</span>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+      <span class="num" style="font-size: 16px; font-weight: 700; color: #4A443C;">≈ R$ 474,86</span>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span class="num" style="font-size: 12.5px; font-weight: 600; color: #A79C90;">R$ 458,80 + IOF R$ 16,06</span>
+        <span style="width: 3px; height: 3px; border-radius: 999px; background: #C9BFB2;"></span>
+        <span class="num" style="font-size: 12.5px; font-weight: 600; color: #A79C90;">taxa 0,037 de 14/03</span>
+      </div>
     </div>
   </div>
 
@@ -61,6 +64,15 @@
     </div>
 
     <div style="background: #FFFFFF; border: 1px solid #E8E1D7; border-radius: 20px; padding: 15px 17px; display: flex; align-items: center; justify-content: space-between;">
+      <span style="font-size: 14px; font-weight: 600; color: #7A7168;">Como foi pago</span>
+      <div style="display: flex; align-items: center; gap: 9px;">
+        <span style="font-size: 14.5px; font-weight: 650;">Cartão de crédito</span>
+        <span class="num" style="font-size: 11.5px; font-weight: 700; color: #B47B10; background: #FBF0DC; padding: 4px 8px; border-radius: 999px;">IOF 3,5%</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A79C90" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </div>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E8E1D7; border-radius: 20px; padding: 15px 17px; display: flex; align-items: center; justify-content: space-between;">
       <span style="font-size: 14px; font-weight: 600; color: #7A7168;">Quem pagou</span>
       <div style="display: flex; align-items: center; gap: 9px;">
         <div style="width: 27px; height: 27px; border-radius: 999px; background: #3FA97A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">C</div>
@@ -82,7 +94,7 @@
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 2px;">
-        <div style="display: flex; align-items: center; gap: 11px; padding: 9px 0;">
+        <div style="display: flex; align-items: center; gap: 11px; padding: 7px 0;">
           <div style="width: 30px; height: 30px; border-radius: 999px; background: #6D4AFF; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700;">V</div>
           <span style="flex-grow: 1; font-size: 15px; font-weight: 600;">Você</span>
           <span class="num" style="font-size: 14px; font-weight: 700; color: #4A443C;">R$ 114,70</span>
@@ -91,7 +103,7 @@
           </div>
         </div>
         <div style="height: 1px; background: #F3EEE7;"></div>
-        <div style="display: flex; align-items: center; gap: 11px; padding: 9px 0;">
+        <div style="display: flex; align-items: center; gap: 11px; padding: 7px 0;">
           <div style="width: 30px; height: 30px; border-radius: 999px; background: #E8654F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700;">A</div>
           <span style="flex-grow: 1; font-size: 15px; font-weight: 600;">Ana</span>
           <span class="num" style="font-size: 14px; font-weight: 700; color: #4A443C;">R$ 114,70</span>
@@ -100,7 +112,7 @@
           </div>
         </div>
         <div style="height: 1px; background: #F3EEE7;"></div>
-        <div style="display: flex; align-items: center; gap: 11px; padding: 9px 0;">
+        <div style="display: flex; align-items: center; gap: 11px; padding: 7px 0;">
           <div style="width: 30px; height: 30px; border-radius: 999px; background: #E2A63C; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700;">B</div>
           <span style="flex-grow: 1; font-size: 15px; font-weight: 600;">Bruno</span>
           <span class="num" style="font-size: 14px; font-weight: 700; color: #4A443C;">R$ 114,70</span>
@@ -109,7 +121,7 @@
           </div>
         </div>
         <div style="height: 1px; background: #F3EEE7;"></div>
-        <div style="display: flex; align-items: center; gap: 11px; padding: 9px 0;">
+        <div style="display: flex; align-items: center; gap: 11px; padding: 7px 0;">
           <div style="width: 30px; height: 30px; border-radius: 999px; background: #3FA97A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700;">C</div>
           <span style="flex-grow: 1; font-size: 15px; font-weight: 600;">Carla</span>
           <span class="num" style="font-size: 14px; font-weight: 700; color: #4A443C;">R$ 114,70</span>

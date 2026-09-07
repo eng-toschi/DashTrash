@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { convert, convertCents, formatRate, parseRateInput, RATE_SCALE } from '@/domain/fx.js';
+import {
+  convert,
+  convertCents,
+  convertCentsFromBase,
+  formatRate,
+  parseRateInput,
+  RATE_SCALE,
+  selectRateForDate,
+} from '@/domain/fx.js';
 import { currencyExponent, money } from '@/domain/money.js';
 import { DomainError } from '@/domain/result.js';
 
@@ -125,5 +133,59 @@ describe('parseRateInput', () => {
     expect(formatRate(5_400_000)).toBe('5.4');
     expect(formatRate(37_000)).toBe('0.037');
     expect(formatRate(RATE_SCALE)).toBe('1');
+  });
+});
+
+describe('convertCentsFromBase', () => {
+  it('diz quanto vale, em ienes, uma dívida em reais', () => {
+    // R$ 1.902,40 a 0,037 = ¥ 51.416 — o que a pessoa entrega em dinheiro.
+    expect(convertCentsFromBase(190_240, 'BRL', 'JPY', 37_000)).toBe(51_416);
+  });
+
+  it('é identidade na própria moeda-base', () => {
+    expect(convertCentsFromBase(190_240, 'BRL', 'BRL', RATE_SCALE)).toBe(190_240);
+  });
+
+  it('recusa taxa diferente de 1 para a mesma moeda', () => {
+    expect(() => convertCentsFromBase(100, 'BRL', 'BRL', 2_000_000)).toThrow(DomainError);
+  });
+
+  it('volta ao ponto de partida em taxas redondas', () => {
+    const emEuros = convertCentsFromBase(62_000, 'BRL', 'EUR', 6_200_000);
+    expect(emEuros).toBe(10_000);
+    expect(convertCents(emEuros, 'EUR', 'BRL', 6_200_000)).toBe(62_000);
+  });
+});
+
+describe('selectRateForDate', () => {
+  const rates = [
+    { asOf: '2026-03-12', ratePpm: 36_800 },
+    { asOf: '2026-03-14', ratePpm: 37_000 },
+    { asOf: '2026-03-17', ratePpm: 37_400 },
+  ];
+
+  it('usa a cotação do dia do gasto', () => {
+    expect(selectRateForDate(rates, '2026-03-14')).toEqual({
+      ratePpm: 37_000,
+      asOf: '2026-03-14',
+      stale: false,
+    });
+  });
+
+  it('cai na cotação anterior mais recente e avisa', () => {
+    // Lançar hoje o jantar de anteontem tem que usar o câmbio de anteontem.
+    expect(selectRateForDate(rates, '2026-03-16')).toEqual({
+      ratePpm: 37_000,
+      asOf: '2026-03-14',
+      stale: true,
+    });
+  });
+
+  it('nunca usa cotação posterior ao gasto', () => {
+    expect(selectRateForDate(rates, '2026-03-10')).toBeUndefined();
+  });
+
+  it('devolve indefinido sem nenhuma cotação em cache', () => {
+    expect(selectRateForDate([], '2026-03-14')).toBeUndefined();
   });
 });

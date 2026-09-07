@@ -35,6 +35,7 @@ export const ledgerArbitrary = (): fc.Arbitrary<TripLedger> =>
         paidBy: fc.constantFrom(...ids),
         participants: fc.subarray(ids, { minLength: 1 }),
         weights: fc.array(fc.integer({ min: 0, max: 100 }), { minLength: 8, maxLength: 8 }),
+        iofPpm: fc.constantFrom(0, 11_000, 35_000),
       })
       .map((raw, index = 0): TripExpense => {
         const currency = raw.currency;
@@ -43,6 +44,7 @@ export const ledgerArbitrary = (): fc.Arbitrary<TripLedger> =>
           amountCents: raw.amountCents,
           currency,
           fxRatePpm: RATES[currency] ?? 1_000_000,
+          iofPpm: currency === 'BRL' ? 0 : raw.iofPpm,
           paidBy: raw.paidBy,
           shares: sharesFor(raw.amountCents, raw.participants, raw.weights),
         };
