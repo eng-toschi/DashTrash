@@ -157,12 +157,37 @@ interface Separators {
   readonly group: string;
 }
 
+/**
+ * Descobre os separadores do locale SEM `formatToParts`.
+ *
+ * O Hermes implementa `Intl.NumberFormat.format`, mas não `formatToParts` — e
+ * chamá-lo derruba a tela de nova despesa. Aqui a gente formata um número
+ * conhecido e lê os separadores do resultado: em pt-BR, 1234,5 vira "1.234,5",
+ * então o último não-dígito é o decimal e o primeiro é o de milhar.
+ */
+export function separatorsFromSample(locale: string): Separators {
+  const sample = new Intl.NumberFormat(locale).format(1234.5);
+  const symbols = sample.replace(/\d/gu, '');
+
+  const decimal = symbols.slice(-1) || '.';
+  const group = symbols.length > 1 ? symbols.slice(0, 1) : decimal === ',' ? '.' : ',';
+  return { decimal, group };
+}
+
 function localeSeparators(locale: string): Separators {
-  const parts = new Intl.NumberFormat(locale).formatToParts(12345.6);
-  return {
-    decimal: parts.find((p) => p.type === 'decimal')?.value ?? '.',
-    group: parts.find((p) => p.type === 'group')?.value ?? ',',
-  };
+  try {
+    const formatter = new Intl.NumberFormat(locale);
+    if (typeof formatter.formatToParts === 'function') {
+      const parts = formatter.formatToParts(12345.6);
+      const decimal = parts.find((p) => p.type === 'decimal')?.value;
+      const group = parts.find((p) => p.type === 'group')?.value;
+      if (decimal !== undefined) return { decimal, group: group ?? (decimal === ',' ? '.' : ',') };
+    }
+    return separatorsFromSample(locale);
+  } catch {
+    // Último recurso: convenção do português, que é o locale padrão do app.
+    return { decimal: ',', group: '.' };
+  }
 }
 
 /**
@@ -277,15 +302,34 @@ const INTL_ACCEPTS_STRING = ((): boolean => {
  */
 export function formatMoney(value: Money, locale: string): string {
   const exponent = currencyExponent(value.currency);
-  const formatter = new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: value.currency,
-    minimumFractionDigits: exponent,
-    maximumFractionDigits: exponent,
-  });
-
   const decimal = toDecimalString(value.cents, exponent);
-  return INTL_ACCEPTS_STRING ? formatter.format(decimal) : formatter.format(Number(decimal));
+
+  try {
+    const formatter = new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: value.currency,
+      minimumFractionDigits: exponent,
+      maximumFractionDigits: exponent,
+    });
+    return INTL_ACCEPTS_STRING ? formatter.format(decimal) : formatter.format(Number(decimal));
+  } catch {
+    return formatWithoutIntl(value, locale, exponent, decimal);
+  }
+}
+
+/**
+ * Reserva para quando o `Intl` não dá conta da moeda pedida.
+ *
+ * Mostra o código ISO em vez de tentar adivinhar símbolo — feio, mas nunca
+ * ambíguo, e melhor que derrubar toda tela que mostra valor.
+ */
+function formatWithoutIntl(value: Money, locale: string, exponent: number, decimal: string): string {
+  const { decimal: decimalMark, group } = localeSeparators(locale);
+  const [integerPart = '0', fractionPart = ''] = decimal.replace('-', '').split('.');
+
+  const grouped = integerPart.replace(/\B(?=(\d{3})+(?!\d))/gu, group);
+  const number = exponent === 0 ? grouped : `${grouped}${decimalMark}${fractionPart}`;
+  return `${value.cents < 0 ? '-' : ''}${value.currency} ${number}`;
 }
 
 /** Exposto só para o teste conferir qual caminho o motor tomou. */

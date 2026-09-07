@@ -8,6 +8,7 @@ import {
   intlAcceptsString,
   money,
   parseMoneyInput,
+  separatorsFromSample,
   sumCents,
   toDecimalString,
   add,
@@ -226,6 +227,46 @@ describe('parseMoneyInput', () => {
       }),
       { numRuns: 300 },
     );
+  });
+});
+
+describe('quando o Intl não dá conta', () => {
+  it('nenhuma moeda derruba a formatação', () => {
+    // Se `formatMoney` lançar, toda tela que mostra valor cai junto. Vale para
+    // qualquer código de moeda, inclusive um que o motor não conheça.
+    for (const currency of ['BRL', 'JPY', 'KWD', 'USD', 'EUR', 'XPF']) {
+      expect(() => formatMoney(money(123_456, currency), 'pt-BR')).not.toThrow();
+      expect(formatMoney(money(123_456, currency), 'pt-BR').length).toBeGreaterThan(0);
+    }
+  });
+
+  it('agrupa milhares e mantém o sinal na reserva', () => {
+    expect(formatMoney(money(0, 'BRL'), 'pt-BR')).toContain('0,00');
+    expect(formatMoney(money(-123_456, 'BRL'), 'pt-BR')).toContain('1.234,56');
+  });
+});
+
+describe('separadores sem formatToParts', () => {
+  it('descobre decimal e milhar a partir de um número formatado', () => {
+    // O Hermes não implementa `formatToParts`. Este é o caminho que roda no
+    // aparelho: sem ele, a tela de nova despesa quebra ao abrir.
+    expect(separatorsFromSample('pt-BR')).toEqual({ decimal: ',', group: '.' });
+    expect(separatorsFromSample('en-US')).toEqual({ decimal: '.', group: ',' });
+  });
+
+  it('a leitura de valor funciona igual pelos dois caminhos', () => {
+    const casos = [
+      ['1.234,56', 'pt-BR', 123_456],
+      ['1,234.56', 'en-US', 123_456],
+      ['10,999', 'pt-BR', undefined],
+      ['1234,5', 'pt-BR', 123_450],
+    ] as const;
+
+    for (const [texto, locale, esperado] of casos) {
+      const result = parseMoneyInput(texto, 'BRL', locale);
+      if (esperado === undefined) expect(result.ok).toBe(false);
+      else expect(result).toEqual({ ok: true, value: esperado });
+    }
   });
 });
 

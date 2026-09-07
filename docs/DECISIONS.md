@@ -168,3 +168,22 @@ para identificador local e está marcado como INACEITÁVEL para segredo — toke
 
 Lição para as próximas fases: toda API de plataforma usada no domínio precisa de teste que
 exercite o caminho sem ela. `Intl` já tinha; `crypto` e `normalize` agora também.
+
+## 2026-09-07 — Toda API de plataforma passa a ter reserva
+
+Três quebras seguidas em aparelho real, todas da mesma família: `crypto` (derrubou na abertura),
+`String.normalize` (ia gerar Pix inválido, calado) e `Intl.NumberFormat.formatToParts` (derrubou
+a tela de nova despesa). O Hermes implementa um subconjunto do que o Node oferece, e os testes
+rodando em Node não veem nada disso.
+
+Regra adotada: **nenhuma chamada a API de plataforma pode derrubar a tela**. Cada uma sonda a
+capacidade ou fica dentro de `try/catch`, com um caminho de reserva testado diretamente — não
+basta testar o caminho feliz, porque no Node é sempre ele que roda.
+
+Cobertos até aqui: `crypto.getRandomValues`, `String.prototype.normalize`,
+`Intl.NumberFormat.formatToParts`, `Intl.NumberFormat` com `style: 'currency'`,
+`Intl.NumberFormat.format` com string, e `Intl.DateTimeFormat`.
+
+O custo disso é real e vale registrar: a reserva de formatação mostra o código ISO em vez do
+símbolo, e a de aleatoriedade usa `Math.random`. As duas são piores que o caminho principal — e
+as duas são muito melhores que uma tela em branco.
