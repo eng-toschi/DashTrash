@@ -209,6 +209,25 @@ export function listRates(db: Database, base: string, quote: string): { asOf: st
     .map((row) => ({ asOf: row.as_of, ratePpm: row.rate_ppm }));
 }
 
+/**
+ * Guarda uma cotação no cache local.
+ *
+ * Não passa pelo outbox: cotação é dado público, não estado da viagem — cada
+ * aparelho busca a sua e não há o que sincronizar nem com o que conflitar.
+ */
+export function saveRate(
+  db: Database,
+  base: string,
+  quote: string,
+  asOf: string,
+  ratePpm: number,
+): void {
+  db.run(
+    'INSERT OR REPLACE INTO fx_rates (base, quote, as_of, rate_ppm) VALUES (?, ?, ?, ?)',
+    [base, quote, asOf, ratePpm],
+  );
+}
+
 export interface SubgroupRow {
   id: string;
   trip_id: string;

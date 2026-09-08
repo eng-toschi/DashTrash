@@ -4,26 +4,35 @@
  * É um componente só de propósito: duas telas separadas divergem com o tempo, e
  * a regra de divisão é exatamente onde divergir sai caro.
  */
-import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createExpense, deleteExpense, updateExpense } from '@/commands';
-import { findMe, getTrip, listActiveParticipants, listRates, listSubgroups } from '@/db/repositories';
+import {
+  findMe,
+  getTrip,
+  listActiveParticipants,
+  listExpenses,
+  listRates,
+  listSubgroups,
+  saveRate,
+} from '@/db/repositories';
 import { RATE_SCALE, formatRate, parseRateInput, selectRateForDate } from '@/domain/fx';
 import { formatMoney, parseMoneyInput, toDecimalString, currencyExponent } from '@/domain/money';
-import { paidAmount, suggestIofPpm, type PaymentMethod } from '@/domain/payment';
+import { IOF_DEFAULT_PPM, paidAmount } from '@/domain/payment';
 import { computeShares, type Split } from '@/domain/split';
 import { useDatabase, useMutate, useQuery } from '@/state/database';
-import { CATEGORY_LABELS, CATEGORY_ORDER, PAYMENT_LABELS, todayIso } from '@/state/format';
+import { fetchRate } from '@/services/fxRates';
+import { CATEGORY_LABELS, CATEGORY_ORDER, todayIso } from '@/state/format';
+import { CurrencyPicker } from './CurrencyPicker';
 import { Avatar, Button, Card, Chip, Divider, Row, SegmentedControl, Text } from '@/ui/components';
 import { IconCheck, IconTrash } from '@/ui/icons';
 import { useTheme } from '@/ui/theme';
 import { MIN_TOUCH, RADIUS, SPACING } from '@/ui/tokens';
 
 const LOCALE = 'pt-BR';
-const CURRENCIES = ['BRL', 'USD', 'EUR', 'JPY', 'GBP', 'ARS', 'CLP'] as const;
-const METHODS: readonly PaymentMethod[] = ['credit_card', 'debit_card', 'cash_fx', 'global_account', 'no_fx'];
+const DEFAULT_IOF_PERCENT = IOF_DEFAULT_PPM.credit_card / 10_000;
 
 export interface ExpenseFormInitial {
   readonly id: string;
@@ -65,8 +74,15 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
   const [description, setDescription] = useState(initial?.description ?? '');
   const [category, setCategory] = useState<string>(initial?.category ?? 'other');
   const [currency, setCurrency] = useState<string>(initial?.currency ?? baseCurrency);
-  const [method, setMethod] = useState<PaymentMethod>((initial?.paymentMethod as PaymentMethod | undefined) ?? 'no_fx');
   const [rateText, setRateText] = useState(initial === undefined ? '' : formatRate(initial.fxRatePpm));
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [rateStatus, setRateStatus] = useState<'idle' | 'loading' | 'failed'>('idle');
+  const [hasIof, setHasIof] = useState(initial === undefined ? true : initial.iofPpm > 0);
+  const [iofPercentText, setIofPercentText] = useState(
+    initial === undefined || initial.iofPpm === 0
+      ? String(DEFAULT_IOF_PERCENT).replace('.', ',')
+      : String(initial.iofPpm / 10_000).replace('.', ','),
+  );
 
   // Quem lança pagou, na esmagadora maioria das vezes. Deixar o default no
   // primeiro da lista alfabética fazia a despesa nascer no nome errado.
@@ -82,10 +98,40 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
     );
   });
 
+  const usedCurrencies = useQuery((database) => [
+    ...new Set(listExpenses(database, tripId).map((row) => row.currency)),
+  ]);
+
   const cachedRate = useMemo(() => {
     if (currency === baseCurrency) return undefined;
     return selectRateForDate(listRates(db, baseCurrency, currency), spentOn);
-  }, [db, baseCurrency, currency, spentOn]);
+  }, [db, baseCurrency, currency, spentOn, rateStatus]);
+
+  /**
+   * Busca a cotação assim que a moeda muda, se ainda não houver uma do dia.
+   *
+   * Sem rede não acontece nada de ruim: o campo manual continua ali, que é como
+   * o app funcionava antes. Cotação é conveniência, não dependência.
+   */
+  useEffect(() => {
+    if (currency === baseCurrency || cachedRate?.stale === false) return;
+
+    let cancelled = false;
+    setRateStatus('loading');
+
+    void fetchRate(currency, baseCurrency, spentOn).then((result) => {
+      if (cancelled) return;
+      if (result.ok) {
+        mutate((database) => { saveRate(database, baseCurrency, currency, result.value.asOf, result.value.ratePpm); });
+        setRateText(formatRate(result.value.ratePpm));
+        setRateStatus('idle');
+      } else {
+        setRateStatus('failed');
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [currency, baseCurrency, spentOn, cachedRate?.stale, mutate]);
 
   const parsedAmount = parseMoneyInput(amountText, currency, LOCALE);
   const amountCents = parsedAmount.ok ? parsedAmount.value : 0;
@@ -98,7 +144,11 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
         ? parsedRate.value
         : (cachedRate?.ratePpm ?? 0);
 
-  const iofPpm = suggestIofPpm(method, currency, baseCurrency);
+  const iofPercent = Number(iofPercentText.replace(',', '.'));
+  const iofPpm =
+    currency === baseCurrency || !hasIof || !Number.isFinite(iofPercent) || iofPercent < 0
+      ? 0
+      : Math.round(iofPercent * 10_000);
 
   const split: Split =
     mode === 'equal'
@@ -149,7 +199,10 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
       fxRatePpm: ratePpm,
       fxManual: parsedRate?.ok === true,
       ...(cachedRate === undefined ? {} : { fxAsOf: cachedRate.asOf }),
-      paymentMethod: method,
+      // A forma de pagamento deixou de ter controle próprio: hoje todas as
+      // modalidades com câmbio têm a mesma alíquota, então o que importa é se
+      // a compra tem IOF ou não. A coluna permanece para quando isso mudar.
+      paymentMethod: iofPpm > 0 ? 'credit_card' : 'no_fx',
       iofPpm,
       spentOn,
       paidBy,
@@ -211,7 +264,7 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
 
         <View style={{ alignItems: 'center', gap: SPACING.sm, paddingVertical: SPACING.md }}>
           <Row gap={SPACING.sm}>
-            <Chip label={currency} onPress={() => { setCurrency(nextCurrency(currency)); }} />
+            <Chip label={currency} onPress={() => { setPickerOpen(true); }} />
             <TextInput
               value={amountText}
               onChangeText={setAmountText}
@@ -250,20 +303,66 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
 
           {currency !== baseCurrency ? (
             <Card style={{ width: '100%', paddingVertical: SPACING.md }}>
-              <Row>
-                <Text variant="caption" tone="muted" style={{ flex: 1 }}>
-                  Quanto vale 1 {currency} em {baseCurrency}?
-                </Text>
-                <TextInput
-                  value={rateText}
-                  onChangeText={setRateText}
-                  placeholder="0,00"
-                  placeholderTextColor={t.textFaint}
-                  keyboardType="decimal-pad"
-                  accessibilityLabel="Taxa de câmbio"
-                  style={{ fontSize: 16, fontWeight: '700', color: t.text, minWidth: 90, textAlign: 'right' }}
-                />
-              </Row>
+              <View style={{ gap: SPACING.sm }}>
+                <Row>
+                  <Text variant="caption" tone="muted" style={{ flex: 1 }}>
+                    {rateStatus === 'loading'
+                      ? 'Buscando a cotação de hoje…'
+                      : `Quanto vale 1 ${currency} em ${baseCurrency}?`}
+                  </Text>
+                  {rateStatus === 'loading' ? <ActivityIndicator size="small" color={t.textFaint} /> : null}
+                  <TextInput
+                    value={rateText}
+                    onChangeText={setRateText}
+                    placeholder="0,00"
+                    placeholderTextColor={t.textFaint}
+                    keyboardType="decimal-pad"
+                    accessibilityLabel="Taxa de câmbio"
+                    style={{ fontSize: 16, fontWeight: '700', color: t.text, minWidth: 90, textAlign: 'right' }}
+                  />
+                </Row>
+
+                {rateStatus === 'failed' ? (
+                  <Text variant="caption" tone="warning">
+                    Não consegui buscar a cotação agora. Digite a taxa — dá para corrigir depois.
+                  </Text>
+                ) : null}
+
+                <Divider />
+
+                <Row>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="label">Esta compra tem IOF</Text>
+                    <Text variant="caption" tone="faint">
+                      Cartão, espécie e conta global pagam a mesma alíquota.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={hasIof}
+                    onValueChange={setHasIof}
+                    accessibilityLabel="Esta compra tem IOF"
+                    trackColor={{ true: t.accent, false: t.border }}
+                  />
+                </Row>
+
+                {hasIof ? (
+                  <Row>
+                    <Text variant="caption" tone="muted" style={{ flex: 1 }}>
+                      Alíquota
+                    </Text>
+                    <TextInput
+                      value={iofPercentText}
+                      onChangeText={setIofPercentText}
+                      keyboardType="decimal-pad"
+                      accessibilityLabel="Alíquota de IOF"
+                      style={{ fontSize: 16, fontWeight: '700', color: t.text, minWidth: 60, textAlign: 'right' }}
+                    />
+                    <Text variant="body" tone="muted">
+                      %
+                    </Text>
+                  </Row>
+                ) : null}
+              </View>
             </Card>
           ) : null}
         </View>
@@ -289,31 +388,6 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
             />
           ))}
         </ScrollView>
-
-        {currency !== baseCurrency ? (
-          <Card style={{ paddingVertical: SPACING.md }}>
-            <View style={{ gap: SPACING.sm }}>
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Text variant="label" tone="muted">
-                  Como foi pago
-                </Text>
-                <Text variant="caption" tone="warning" numeric>
-                  {iofPpm === 0 ? 'sem IOF' : `IOF ${(iofPpm / 10_000).toFixed(1)}%`}
-                </Text>
-              </Row>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.sm }}>
-                {METHODS.map((option) => (
-                  <Chip
-                    key={option}
-                    label={PAYMENT_LABELS[option] ?? option}
-                    selected={option === method}
-                    onPress={() => { setMethod(option); }}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-          </Card>
-        ) : null}
 
         <Card style={{ paddingVertical: SPACING.md }}>
           <View style={{ gap: SPACING.sm }}>
@@ -450,11 +524,14 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
       <View style={{ position: 'absolute', left: SPACING.xl, right: SPACING.xl, bottom: insets.bottom + SPACING.lg }}>
         <Button label={editing ? 'Salvar alterações' : 'Salvar despesa'} onPress={save} disabled={!canSave} />
       </View>
+
+      <CurrencyPicker
+        visible={pickerOpen}
+        selected={currency}
+        recent={[baseCurrency, ...usedCurrencies]}
+        onSelect={setCurrency}
+        onClose={() => { setPickerOpen(false); }}
+      />
     </View>
   );
-}
-
-function nextCurrency(current: string): string {
-  const index = CURRENCIES.indexOf(current as (typeof CURRENCIES)[number]);
-  return CURRENCIES[(index + 1) % CURRENCIES.length] ?? 'BRL';
 }

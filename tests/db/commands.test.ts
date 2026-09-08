@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addParticipant,
+  archiveTrip,
   createExpense,
   createTrip,
   deleteExpense,
@@ -9,7 +10,7 @@ import {
   restoreExpense,
   updateExpense,
 } from '@/commands/index';
-import { listExpenses, listShares, listSubgroups, loadLedger } from '@/db/repositories';
+import { listExpenses, listShares, listSubgroups, listTrips, loadLedger } from '@/db/repositories';
 import { computeBalances, expenseInBase } from '@/domain/balance';
 import { sumCents } from '@/domain/money';
 import { pendingCount, pendingOps } from '@/sync/outbox';
@@ -381,5 +382,32 @@ describe('outbox', () => {
 
     const payload = pendingOps(db).at(-1)?.payload as { shares: unknown[] };
     expect(payload.shares).toHaveLength(2);
+  });
+});
+
+describe('encerrar viagem', () => {
+  it('arquiva a viagem e ela sai da lista de ativas', () => {
+    const { db, ctx, tripId } = viagemComQuatro();
+    expect(listTrips(db).filter((t) => t.archived_at === null)).toHaveLength(1);
+
+    expect(archiveTrip(db, ctx, tripId).ok).toBe(true);
+
+    // REGRESSÃO: o botão "Encerrar viagem" só fechava a tela; a viagem
+    // continuava aparecendo entre as ativas.
+    const trips = listTrips(db);
+    expect(trips).toHaveLength(1);
+    expect(trips[0]?.archived_at).not.toBeNull();
+  });
+
+  it('dá para reabrir uma viagem encerrada', () => {
+    const { db, ctx, tripId } = viagemComQuatro();
+    archiveTrip(db, ctx, tripId);
+    expect(archiveTrip(db, ctx, tripId, false).ok).toBe(true);
+    expect(listTrips(db)[0]?.archived_at).toBeNull();
+  });
+
+  it('recusa arquivar viagem que não existe', () => {
+    const { db, ctx } = viagemComQuatro();
+    expect(archiveTrip(db, ctx, 'nao-existe')).toEqual({ ok: false, error: { code: 'trip_not_found' } });
   });
 });

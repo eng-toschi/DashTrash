@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { recordSettlement } from '@/commands';
+import { archiveTrip, recordSettlement } from '@/commands';
 import { getTrip, listExpenses, listParticipants, loadLedger } from '@/db/repositories';
 import { computeBalances, totalIof, totalSpent } from '@/domain/balance';
 import { summarizeByCategory } from '@/domain/summary';
@@ -303,7 +303,23 @@ export default function ClosingScreen() {
           gap: SPACING.sm,
         }}
       >
-        <Button label="Encerrar viagem" variant="inverse" disabled={!settled} onPress={() => { router.back(); }} />
+        <Button
+          label="Encerrar viagem"
+          variant="inverse"
+          disabled={!settled}
+          onPress={() => {
+            Alert.alert('Encerrar viagem', `"${data.name}" vai para as encerradas. O histórico continua lá.`, [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Encerrar',
+                onPress: () => {
+                  mutate((db, ctx) => { archiveTrip(db, ctx, tripId); });
+                  router.dismissTo('/');
+                },
+              },
+            ]);
+          }}
+        />
         {settled ? null : (
           <Text variant="caption" tone="muted" style={{ textAlign: 'center' }}>
             {transfers.length === 1

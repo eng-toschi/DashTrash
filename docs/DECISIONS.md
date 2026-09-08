@@ -187,3 +187,22 @@ Cobertos até aqui: `crypto.getRandomValues`, `String.prototype.normalize`,
 O custo disso é real e vale registrar: a reserva de formatação mostra o código ISO em vez do
 símbolo, e a de aleatoriedade usa `Math.random`. As duas são piores que o caminho principal — e
 as duas são muito melhores que uma tela em branco.
+
+## 2026-09-08 — Cotação online sim, IOF online não
+
+Os dois pedidos chegaram juntos, e só um tem resposta honesta.
+
+**Câmbio:** há serviço público confiável, e o app passou a buscar a cotação do dia quando a
+moeda muda. A resposta é tratada como dado NÃO confiável — o formato é conferido campo a campo,
+e qualquer coisa fora do esperado cai no preenchimento manual. Uma cotação errada gravada numa
+despesa é pior que pedir a taxa à mão: ela some dentro de um número plausível e ninguém confere.
+
+**IOF:** não existe fonte pública, oficial e legível por máquina da alíquota vigente. Inventar
+uma (raspar uma página, chutar um endpoint) daria um número que pode mudar sem aviso e quebrar
+calado — exatamente o tipo de erro que este app não pode ter. Enquanto isso, a alíquota é um
+interruptor com percentual editável na tela, padrão 3,5%, congelado na despesa. Quando existir
+servidor (Fase 6), ele serve esse número, e aí muda sem depender de atualização do app.
+
+Consequência de projeto: o seletor de forma de pagamento saiu da tela. Hoje cartão, espécie e
+conta global pagam a mesma alíquota, então dois controles decidiam a mesma coisa. A coluna
+`payment_method` continua no banco para quando voltarem a divergir.

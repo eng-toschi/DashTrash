@@ -129,6 +129,37 @@ export function createTrip(db: Database, ctx: CommandContext, input: CreateTripI
   return id;
 }
 
+/**
+ * Encerra a viagem: ela sai da lista de ativas e vai para as encerradas.
+ *
+ * É arquivar, não apagar — o histórico continua consultável, e `unarchiveTrip`
+ * traz de volta se alguém lembrar de uma despesa esquecida.
+ */
+export function archiveTrip(
+  db: Database,
+  ctx: CommandContext,
+  tripId: string,
+  archived = true,
+): Result<void, CommandError> {
+  if (getTrip(db, tripId) === undefined) return err({ code: 'trip_not_found' });
+
+  db.transaction(() => {
+    db.run(
+      'UPDATE trips SET archived_at = ?, lamport = lamport + 1, updated_at = ? WHERE id = ?',
+      [archived ? ctx.now() : null, ctx.now(), tripId],
+    );
+    record(db, ctx, {
+      tripId,
+      entity: 'trip',
+      entityId: tripId,
+      kind: 'upsert',
+      payload: rowOf(db, 'trips', tripId),
+    });
+  });
+
+  return ok(undefined);
+}
+
 export interface AddParticipantInput {
   readonly tripId: string;
   readonly displayName: string;
