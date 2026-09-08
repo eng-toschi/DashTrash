@@ -1,12 +1,14 @@
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_BUILD } from '@/config/app';
 import { deleteTrip } from '@/commands';
-import { computeBalances, expenseInBase } from '@/domain/balance';
+import { computeBalances, expenseInBase, outstandingCents } from '@/domain/balance';
 import { formatMoney } from '@/domain/money';
 import { findMe, listParticipants, listTrips, loadLedger } from '@/db/repositories';
 import { shareTripDossier } from '@/features/report/shareDossier';
+import { ActionSheet, type SheetAction } from '@/ui/ActionSheet';
 import { useDatabase, useMutate, useQuery } from '@/state/database';
 import { todayIso } from '@/state/format';
 import { periodLabel } from '@/state/format';
@@ -15,14 +17,13 @@ import {
   Badge,
   Button,
   Card,
-  Divider,
   EmptyState,
   MoneyText,
   Row,
   Text,
   ThemeToggle,
 } from '@/ui/components';
-import { IconCheck, IconPlus, IconShare, IconTrash } from '@/ui/icons';
+import { IconCheck, IconClock, IconMore, IconPlus, IconShare, IconTrash } from '@/ui/icons';
 import { useTheme } from '@/ui/theme';
 import { MIN_TOUCH, RADIUS, SPACING, personColor } from '@/ui/tokens';
 
@@ -40,6 +41,8 @@ interface TripCard {
   readonly byPayer: { id: string; seed: string; cents: number }[];
   /** Ninguém deve nada a ninguém — o que a viagem encerrada quer dizer. */
   readonly settled: boolean;
+  /** Quanto ainda falta circular entre as pessoas, na moeda do acerto. */
+  readonly openCents: number;
 }
 
 export default function TripsScreen() {
@@ -83,6 +86,7 @@ export default function TripsScreen() {
           .filter((p) => p.cents > 0)
           .sort((a, b) => b.cents - a.cents),
         settled: balances.balances.every((b) => b.cents === 0),
+        openCents: outstandingCents(balances.balances),
       };
     }),
   );
@@ -107,8 +111,31 @@ export default function TripsScreen() {
     );
   };
 
+  const [sheetTripId, setSheetTripId] = useState<string | undefined>(undefined);
+
   const active = trips.filter((trip) => !trip.archived);
   const archived = trips.filter((trip) => trip.archived);
+
+  const sheetTrip = trips.find((trip) => trip.id === sheetTripId);
+  const sheetActions: SheetAction[] =
+    sheetTrip === undefined
+      ? []
+      : [
+          {
+            key: 'dossier',
+            label: 'Dossiê em PDF',
+            tone: 'accent',
+            icon: <IconShare size={20} color={t.accent} />,
+            onPress: () => { void shareTripDossier(db, sheetTrip.id, sheetTrip.name, todayIso()); },
+          },
+          {
+            key: 'discard',
+            label: 'Descartar viagem',
+            tone: 'negative',
+            icon: <IconTrash size={20} color={t.negative} />,
+            onPress: () => { confirmDiscard(sheetTrip.id, sheetTrip.name); },
+          },
+        ];
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
@@ -208,74 +235,100 @@ export default function TripsScreen() {
         ))}
 
         {archived.length > 0 ? (
-          <Text variant="overline" tone="faint" style={{ marginTop: SPACING.md }}>
-            Encerradas
-          </Text>
+          <Row gap={10} style={{ marginTop: SPACING.sm, paddingHorizontal: 2 }}>
+            <Text variant="overline" tone="faint">
+              Encerradas
+            </Text>
+            <View style={{ flex: 1, height: StyleSheet.hairlineWidth * 2, backgroundColor: t.border }} />
+          </Row>
         ) : null}
 
-        {archived.map((trip) => (
-          <Card key={trip.id} style={{ backgroundColor: 'transparent' }}>
-            <View style={{ gap: SPACING.md }}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Abrir ${trip.name}`}
-                onPress={() => { router.push(`/trip/${trip.id}`); }}
-              >
-                <Row style={{ justifyContent: 'space-between' }}>
-                  <View style={{ gap: 3 }}>
-                    <Text variant="body">{trip.name}</Text>
-                    <Text variant="caption" tone="faint">
-                      {[trip.period, `${String(trip.expenseCount)} despesas`].filter(Boolean).join(' · ')}
+        {/* Uma LINHA por viagem, não um card cada. Com card, três viagens
+            encerradas já enchiam a tela e empurravam a viagem em curso — que é
+            a única em que alguém ainda mexe — para fora dela. */}
+        {archived.length === 0 ? null : (
+          <Card padded={false} style={{ borderRadius: RADIUS.lg }}>
+            {archived.map((trip, index) => (
+              <View key={trip.id}>
+                {index === 0 ? null : (
+                  <View
+                    style={{
+                      height: StyleSheet.hairlineWidth * 2,
+                      backgroundColor: t.border,
+                      marginLeft: 16,
+                    }}
+                  />
+                )}
+                <Row gap={SPACING.md} style={{ paddingVertical: 13, paddingHorizontal: 16 }}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Abrir ${trip.name}`}
+                    onPress={() => { router.push(`/trip/${trip.id}`); }}
+                    style={{ flex: 1, gap: 3, minHeight: MIN_TOUCH - 8, justifyContent: 'center' }}
+                  >
+                    <Text variant="body" numberOfLines={1}>
+                      {trip.name}
                     </Text>
-                  </View>
-                  <Row gap={SPACING.xs}>
-                    {trip.settled ? <IconCheck size={15} color={t.positive} /> : null}
-                    <Text variant="caption" tone={trip.settled ? 'positive' : 'muted'}>
-                      {trip.settled ? 'Tudo acertado' : 'Encerrada'}
+                    <Text variant="caption" tone="faint" numberOfLines={1}>
+                      {[
+                        trip.period,
+                        `${String(trip.people.length)} pessoas`,
+                        `${String(trip.expenseCount)} despesas`,
+                      ]
+                        .filter((part) => part !== undefined && part !== '')
+                        .join(' · ')}
+                    </Text>
+                  </Pressable>
+
+                  <Row gap={5}>
+                    {trip.settled ? (
+                      <IconCheck size={14} color={t.positive} />
+                    ) : (
+                      <IconClock size={14} color={t.warning} />
+                    )}
+                    <Text variant="caption" strong tone={trip.settled ? 'positive' : 'warning'} numeric>
+                      {trip.settled
+                        ? 'Acertado'
+                        : `${formatMoney({ cents: trip.openCents, currency: trip.baseCurrency }, 'pt-BR')} em aberto`}
                     </Text>
                   </Row>
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ações de ${trip.name}`}
+                    onPress={() => { setSheetTripId(trip.id); }}
+                    hitSlop={8}
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: RADIUS.pill,
+                      backgroundColor: t.surfaceAlt,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <IconMore size={15} color={t.textMuted} />
+                  </Pressable>
                 </Row>
-              </Pressable>
-
-              <Divider />
-
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Gerar dossiê de ${trip.name}`}
-                  onPress={() => { void shareTripDossier(db, trip.id, trip.name, todayIso()); }}
-                  hitSlop={8}
-                  style={{ minHeight: MIN_TOUCH, justifyContent: 'center' }}
-                >
-                  <Row gap={SPACING.sm}>
-                    <IconShare size={17} color={t.accent} />
-                    <Text variant="label" tone="accent">
-                      Dossiê em PDF
-                    </Text>
-                  </Row>
-                </Pressable>
-
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Descartar ${trip.name}`}
-                  onPress={() => { confirmDiscard(trip.id, trip.name); }}
-                  hitSlop={8}
-                  style={{ minHeight: MIN_TOUCH, justifyContent: 'center' }}
-                >
-                  <Row gap={SPACING.sm}>
-                    <IconTrash size={17} color={t.textMuted} />
-                    <Text variant="label" tone="muted">
-                      Descartar
-                    </Text>
-                  </Row>
-                </Pressable>
-              </Row>
-            </View>
+              </View>
+            ))}
           </Card>
-        ))}
+        )}
       </ScrollView>
 
-      <View style={{ position: 'absolute', left: SPACING.xl, right: SPACING.xl, bottom: insets.bottom + SPACING.lg }}>
+      {/* Fundo sólido: sem ele o último card passa por baixo do botão. */}
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          paddingTop: SPACING.md,
+          paddingHorizontal: SPACING.xl,
+          paddingBottom: insets.bottom + SPACING.lg,
+          backgroundColor: t.bg,
+        }}
+      >
         <Button
           label="Nova viagem"
           variant="inverse"
@@ -283,6 +336,16 @@ export default function TripsScreen() {
           onPress={() => { router.push('/trip/new'); }}
         />
       </View>
+
+      <ActionSheet
+        visible={sheetTrip !== undefined}
+        title={sheetTrip?.name ?? ''}
+        {...(sheetTrip === undefined
+          ? {}
+          : { subtitle: `Encerrada · ${String(sheetTrip.expenseCount)} despesas` })}
+        actions={sheetActions}
+        onClose={() => { setSheetTripId(undefined); }}
+      />
     </View>
   );
 }

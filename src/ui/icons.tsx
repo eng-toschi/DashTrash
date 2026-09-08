@@ -76,6 +76,21 @@ export const IconTrash = ({ size, color }: IconProps) => (
 );
 
 /** Um ícone por categoria da lista fechada do spec (§5.3). */
+export const IconMore = ({ size, color }: IconProps) => (
+  <Svg {...base(size)}>
+    <Circle cx="5" cy="12" r="1.4" fill={color} stroke={color} strokeWidth={1.4} />
+    <Circle cx="12" cy="12" r="1.4" fill={color} stroke={color} strokeWidth={1.4} />
+    <Circle cx="19" cy="12" r="1.4" fill={color} stroke={color} strokeWidth={1.4} />
+  </Svg>
+);
+
+export const IconClock = ({ size, color }: IconProps) => (
+  <Svg {...base(size)}>
+    <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={2.2} />
+    <Path d="M12 7.5V12l3 2" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
 export const IconSun = ({ size, color }: IconProps) => (
   <Svg {...base(size)}>
     <Circle cx="12" cy="12" r="4.2" stroke={color} strokeWidth={STROKE} />

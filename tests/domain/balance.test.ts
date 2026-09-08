@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { computeBalances, expenseInBase, totalSpent, type TripLedger } from '@/domain/balance';
+import {
+  computeBalances,
+  expenseInBase,
+  outstandingCents,
+  totalSpent,
+  type TripLedger,
+} from '@/domain/balance';
 import { convertCents } from '@/domain/fx';
 import { sumCents } from '@/domain/money';
 import { DomainError } from '@/domain/result';
@@ -264,6 +270,52 @@ describe('invariante central', () => {
         return true;
       }),
       { numRuns: 400 },
+    );
+  });
+});
+
+describe('outstandingCents', () => {
+  it('é zero quando ninguém deve nada', () => {
+    expect(outstandingCents([])).toBe(0);
+    expect(
+      outstandingCents([
+        { participantId: 'a', cents: 0 },
+        { participantId: 'b', cents: 0 },
+      ]),
+    ).toBe(0);
+  });
+
+  it('soma só o lado credor — o devedor é a mesma dívida vista de trás', () => {
+    expect(
+      outstandingCents([
+        { participantId: 'a', cents: 4_000 },
+        { participantId: 'b', cents: -1_500 },
+        { participantId: 'c', cents: -2_500 },
+      ]),
+    ).toBe(4_000);
+  });
+
+  it('vale para qualquer conjunto de saldos que feche em zero', () => {
+    fc.assert(
+      fc.property(fc.array(fc.integer({ min: -50_000, max: 50_000 }), { minLength: 1, maxLength: 8 }), (raw) => {
+        // Fecha os saldos em zero jogando o resto na última pessoa, como o
+        // fechamento sempre faz.
+        const head = raw.slice(0, -1);
+        const balances = [
+          ...head.map((cents, i) => ({ participantId: `p${String(i)}`, cents })),
+          { participantId: 'last', cents: -head.reduce((a, b) => a + b, 0) },
+        ];
+        const open = outstandingCents(balances);
+        // Somado pelo lado devedor: `Math.max(0, -cents)` em vez de negar a
+        // soma dos mínimos, que devolve -0 quando todos os saldos são zero.
+        const owed = balances.reduce((total, b) => total + Math.max(0, -b.cents), 0);
+        // O que falta receber é exatamente o que falta pagar.
+        expect(open).toBe(owed);
+        // Dinheiro nunca sai daqui como -0: seria igual a 0 em `===` e
+        // diferente em `Object.is`, e é o tipo de detalhe que só aparece na
+        // comparação errada, meses depois.
+        expect(Object.is(open, -0)).toBe(false);
+      }),
     );
   });
 });

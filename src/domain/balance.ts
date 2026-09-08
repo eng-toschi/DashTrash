@@ -140,6 +140,19 @@ export function computeBalances(ledger: TripLedger): BalanceReport {
 }
 
 /** Total gasto na viagem, em moeda-base. Acertos não entram: não são despesa. */
+/**
+ * Quanto ainda precisa mudar de mão para a viagem fechar.
+ *
+ * É a soma dos saldos POSITIVOS: os negativos são a mesma dívida vista do outro
+ * lado, e somar os dois dá sempre zero — que é a única coisa que a soma completa
+ * consegue dizer. Uma viagem encerrada com este número em zero está quitada; com
+ * ele acima de zero, alguém ainda deve a alguém, e a tela precisa dizer isso em
+ * vez de só carimbar "encerrada".
+ */
+export function outstandingCents(balances: readonly Balance[]): number {
+  return balances.reduce((total, b) => total + Math.max(0, b.cents), 0);
+}
+
 export function totalSpent(ledger: TripLedger): number {
   return sumCents(ledger.expenses.map((e) => expenseInBase(e, ledger.baseCurrency).totalCents));
 }

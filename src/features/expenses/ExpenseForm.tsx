@@ -5,7 +5,16 @@
  * a regra de divisão é exatamente onde divergir sai caro.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  TextInput,
+  View,
+} from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { addTripCurrency, createExpense, deleteExpense, updateExpense } from '@/commands';
@@ -19,15 +28,16 @@ import {
   saveRate,
 } from '@/db/repositories';
 import { RATE_SCALE, formatRate, parseRateInput, selectRateForDate } from '@/domain/fx';
-import { formatMoney, parseMoneyInput, toDecimalString, currencyExponent } from '@/domain/money';
+import { allocate, formatMoney, parseMoneyInput, toDecimalString, currencyExponent } from '@/domain/money';
 import { IOF_DEFAULT_PPM, paidAmount } from '@/domain/payment';
 import { computeShares, type Split } from '@/domain/split';
 import { useDatabase, useMutate, useQuery } from '@/state/database';
 import { fetchRate } from '@/services/fxRates';
 import { CATEGORY_LABELS, CATEGORY_ORDER, todayIso } from '@/state/format';
 import { CurrencyPicker } from './CurrencyPicker';
+import { ActionSheet, type SheetAction } from '@/ui/ActionSheet';
 import { Avatar, Button, Card, CategoryChip, Chip, Divider, Row, SegmentedControl, Text } from '@/ui/components';
-import { IconCheck, IconTrash } from '@/ui/icons';
+import { IconCheck, IconChevron, IconTrash } from '@/ui/icons';
 import { useTheme } from '@/ui/theme';
 import { FONT, MIN_TOUCH, RADIUS, SPACING } from '@/ui/tokens';
 
@@ -72,10 +82,13 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
     initial === undefined ? '' : moneyToText(initial.amountCents, initial.currency),
   );
   const [description, setDescription] = useState(initial?.description ?? '');
-  const [category, setCategory] = useState<string>(initial?.category ?? 'other');
+  // 'other' era o DÉCIMO chip: a tela abria sem nenhuma categoria visível
+  // marcada, e parecia quebrada. Restaurante é de longe a despesa mais lançada.
+  const [category, setCategory] = useState<string>(initial?.category ?? 'restaurant');
   const [currency, setCurrency] = useState<string>(initial?.currency ?? baseCurrency);
   const [rateText, setRateText] = useState(initial === undefined ? '' : formatRate(initial.fxRatePpm));
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [payerSheetOpen, setPayerSheetOpen] = useState(false);
   const [rateStatus, setRateStatus] = useState<'idle' | 'loading' | 'failed'>('idle');
   const [hasIof, setHasIof] = useState(initial === undefined ? true : initial.iofPpm > 0);
   const [iofPercentText, setIofPercentText] = useState(
@@ -170,13 +183,38 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
       ? paidAmount(amountCents, currency, baseCurrency, ratePpm, iofPpm)
       : undefined;
 
-  const perPersonCents =
-    shares?.ok === true && selected.length > 0
-      ? Math.round((converted?.totalCents ?? amountCents) / selected.length)
-      : 0;
+  /**
+   * Quanto cabe a cada pessoa, na moeda do acerto — pela MESMA conta do
+   * fechamento, não por uma divisão aproximada.
+   *
+   * `Math.round(total / n)` mostraria R$ 3,33 para três pessoas em R$ 10,00,
+   * e a soma na tela daria R$ 9,99. `allocate` reparte o total já convertido
+   * pelo maior resto, que é exatamente o que `expenseInBase` faz quando o
+   * saldo é calculado — então o que se lê aqui é o que vai para o razão.
+   */
+  const perPersonInBase = useMemo(() => {
+    if (shares?.ok !== true || shares.value.length === 0) return new Map<string, number>();
+    const totalInBase = converted?.totalCents ?? amountCents;
+    return new Map(
+      allocate(
+        totalInBase,
+        shares.value.map((share) => ({ id: share.participantId, weight: share.cents })),
+      ).map((entry) => [entry.id, entry.cents]),
+    );
+  }, [shares, converted, amountCents]);
 
   const canSave =
     amountCents > 0 && ratePpm > 0 && paidBy !== '' && selected.length > 0 && shares?.ok === true;
+
+  const payer = people.find((p) => p.id === paidBy);
+
+  const payerActions: SheetAction[] = people.map((person) => ({
+    key: person.id,
+    label: person.display_name,
+    avatar: { name: person.display_name, seed: person.avatar_seed },
+    selected: person.id === paidBy,
+    onPress: () => { setPaidBy(person.id); },
+  }));
 
   const toggle = (participantId: string): void => {
     setSelected((current) =>
@@ -260,29 +298,36 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
           )}
         </Row>
 
-        {tripCurrencies.length > 1 ? (
-          <Row gap={SPACING.sm} style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
-            {tripCurrencies.map((code) => (
-              <Chip
-                key={code}
-                label={code}
-                selected={code === currency}
-                onPress={() => { setCurrency(code); }}
-              />
-            ))}
-            <Chip label="Outra" onPress={() => { setPickerOpen(true); }} />
-          </Row>
-        ) : null}
-
-        <View style={{ alignItems: 'center', gap: SPACING.sm, paddingVertical: SPACING.md }}>
-          <Row gap={SPACING.sm}>
-            {tripCurrencies.length > 1 ? null : (
-              <Chip label={currency} onPress={() => { setPickerOpen(true); }} />
-            )}
+        {/* A moeda fica COLADA no número, na mesma linha de base. Antes era uma
+            fileira de chips no topo, e o valor sobrava sozinho no meio de um
+            vazio de duzentos pixels. */}
+        <View style={{ alignItems: 'center', gap: 7, paddingTop: SPACING.lg, paddingBottom: SPACING.sm }}>
+          <Row gap={10} style={{ alignItems: 'center' }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Moeda: ${currency}. Tocar para trocar.`}
+              onPress={() => { setPickerOpen(true); }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                backgroundColor: t.surfaceAlt,
+                borderRadius: RADIUS.pill,
+                paddingVertical: 7,
+                paddingHorizontal: 13,
+              }}
+            >
+              <Text variant="caption" strong>
+                {currency}
+              </Text>
+              <View style={{ transform: [{ rotate: '90deg' }] }}>
+                <IconChevron size={12} color={t.textMuted} />
+              </View>
+            </Pressable>
             <TextInput
               value={amountText}
               onChangeText={setAmountText}
-              placeholder="0"
+              placeholder="0,00"
               placeholderTextColor={t.textFaint}
               keyboardType="decimal-pad"
               autoFocus={!editing}
@@ -302,7 +347,7 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
 
           {converted !== undefined && currency !== baseCurrency ? (
             <View style={{ alignItems: 'center', gap: 3 }}>
-              <Text variant="label" tone="muted" numeric>
+              <Text variant="title" numeric>
                 ≈ {formatMoney({ cents: converted.totalCents, currency: baseCurrency }, LOCALE)}
               </Text>
               <Text variant="caption" tone="faint" numeric>
@@ -406,22 +451,26 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
           ))}
         </ScrollView>
 
-        <Card style={{ paddingVertical: SPACING.md }}>
-          <View style={{ gap: SPACING.sm }}>
+        {/* Uma linha, não um card com uma fileira de chips: quem pagou é quase
+            sempre quem está lançando, então isto é confirmação, não escolha. */}
+        <Card
+          style={{ paddingVertical: 13, paddingHorizontal: 17, borderRadius: RADIUS.lg }}
+          onPress={() => { setPayerSheetOpen(true); }}
+        >
+          <Row style={{ justifyContent: 'space-between' }}>
             <Text variant="label" tone="muted">
               Quem pagou
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.sm }}>
-              {people.map((person) => (
-                <Chip
-                  key={person.id}
-                  label={person.display_name}
-                  selected={person.id === paidBy}
-                  onPress={() => { setPaidBy(person.id); }}
-                />
-              ))}
-            </ScrollView>
-          </View>
+            <Row gap={9}>
+              {payer === undefined ? null : (
+                <Avatar name={payer.display_name} seed={payer.avatar_seed} size={27} />
+              )}
+              <Text variant="body" strong>
+                {payer?.display_name ?? '—'}
+              </Text>
+              <IconChevron size={15} color={t.textFaint} />
+            </Row>
+          </Row>
         </Card>
 
         <Card>
@@ -430,11 +479,8 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
               <Text variant="label" tone="muted">
                 Dividir entre
               </Text>
-              <Text variant="caption" tone="accent" numeric>
-                {selected.length} de {people.length}
-                {mode === 'equal' && perPersonCents > 0
-                  ? ` · ${formatMoney({ cents: perPersonCents, currency: baseCurrency }, LOCALE)} cada`
-                  : ''}
+              <Text variant="caption" strong tone="accent" numeric>
+                {selected.length} de {people.length} · {mode === 'equal' ? 'igual' : 'valor exato'}
               </Text>
             </Row>
 
@@ -479,13 +525,29 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
                       accessibilityState={{ checked: isOn }}
                       accessibilityLabel={person.display_name}
                       onPress={() => { toggle(person.id); }}
-                      style={{ minHeight: MIN_TOUCH, justifyContent: 'center' }}
+                      style={{ minHeight: MIN_TOUCH, justifyContent: 'center', opacity: isOn ? 1 : 0.45 }}
                     >
-                      <Row>
+                      <Row gap={11}>
                         <Avatar name={person.display_name} seed={person.avatar_seed} size={30} />
                         <Text variant="body" style={{ flex: 1 }}>
                           {person.display_name}
                         </Text>
+
+                        {/* Quanto cabe a esta pessoa, na moeda do acerto. Sem
+                            isto a divisão só aparece somada no topo, e a
+                            pergunta de quem olha é sempre "quanto é o MEU". */}
+                        {mode === 'equal' ? (
+                          <Text variant="label" tone={isOn ? 'muted' : 'faint'} numeric>
+                            {!isOn
+                              ? 'fora'
+                              : perPersonInBase.has(person.id)
+                                ? formatMoney(
+                                    { cents: perPersonInBase.get(person.id) ?? 0, currency: baseCurrency },
+                                    LOCALE,
+                                  )
+                                : '—'}
+                          </Text>
+                        ) : null}
 
                         {mode === 'exact' && isOn ? (
                           <TextInput
@@ -538,9 +600,32 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
         </Card>
       </ScrollView>
 
-      <View style={{ position: 'absolute', left: SPACING.xl, right: SPACING.xl, bottom: insets.bottom + SPACING.lg }}>
+      {/* Fundo sólido, não só o botão flutuando: sem ele a lista passa POR BAIXO
+          do botão enquanto rola, e o último participante fica meio coberto. */}
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          paddingTop: SPACING.md,
+          paddingHorizontal: SPACING.xl,
+          paddingBottom: insets.bottom + SPACING.lg,
+          backgroundColor: t.bg,
+          borderTopWidth: StyleSheet.hairlineWidth * 2,
+          borderTopColor: t.border,
+        }}
+      >
         <Button label={editing ? 'Salvar alterações' : 'Salvar despesa'} onPress={save} disabled={!canSave} />
       </View>
+
+      <ActionSheet
+        visible={payerSheetOpen}
+        title="Quem pagou"
+        subtitle="A despesa entra como adiantamento de quem pagou."
+        actions={payerActions}
+        onClose={() => { setPayerSheetOpen(false); }}
+      />
 
       <CurrencyPicker
         visible={pickerOpen}
