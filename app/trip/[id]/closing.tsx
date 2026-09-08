@@ -25,7 +25,7 @@ import { CATEGORY_LABELS, todayIso } from '@/state/format';
 import { Avatar, Button, Card, Chip, Divider, MoneyText, Row, SegmentedControl, Text } from '@/ui/components';
 import { IconBack, IconCopy, IconShare } from '@/ui/icons';
 import { useTheme } from '@/ui/theme';
-import { RADIUS, SPACING } from '@/ui/tokens';
+import { RADIUS, SPACING, categoryColor } from '@/ui/tokens';
 
 const LOCALE = 'pt-BR';
 
@@ -222,23 +222,36 @@ export default function ClosingScreen() {
               </View>
             </Row>
 
-            <View style={{ gap: SPACING.sm }}>
+            <View style={{ gap: 9 }}>
               {data.categories.map(({ category, cents }) => (
-                <Row key={category} gap={SPACING.sm}>
-                  <Text variant="caption" style={{ width: 86 }}>
+                <Row key={category} gap={9}>
+                  <Text variant="caption" strong style={{ width: 74 }} numberOfLines={1}>
                     {CATEGORY_LABELS[category] ?? category}
                   </Text>
-                  <View style={{ flex: 1, height: 9, backgroundColor: t.surfaceAlt, borderRadius: RADIUS.pill }}>
+                  <View
+                    style={{
+                      flex: 1,
+                      height: 9,
+                      backgroundColor: t.surfaceAlt,
+                      borderRadius: RADIUS.pill,
+                      overflow: 'hidden',
+                    }}
+                  >
                     <View
                       style={{
                         height: 9,
                         borderRadius: RADIUS.pill,
-                        backgroundColor: t.accent,
+                        backgroundColor: categoryColor(category),
                         width: `${((cents / Math.max(1, data.total)) * 100).toFixed(2)}%` as `${number}%`,
                       }}
                     />
                   </View>
-                  <MoneyText variant="caption" tone="default" value={{ cents, currency: data.baseCurrency }} />
+                  <MoneyText
+                    variant="caption"
+                    tone="default"
+                    value={{ cents, currency: data.baseCurrency }}
+                    style={{ width: 74, textAlign: 'right' }}
+                  />
                 </Row>
               ))}
             </View>

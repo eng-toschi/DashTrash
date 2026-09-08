@@ -193,10 +193,19 @@ INSERT OR IGNORE INTO trip_currencies (trip_id, code, position)
   SELECT DISTINCT trip_id, currency, 1 FROM expenses WHERE deleted_at IS NULL;
 `;
 
+/** Quarta: preferências do aparelho, como o tema. Não sincroniza — é local. */
+const APP_SETTINGS = `
+CREATE TABLE app_settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, name: 'initial', sql: INITIAL },
   { version: 2, name: 'pix_iof_subgroups', sql: PIX_IOF_SUBGROUPS },
   { version: 3, name: 'trip_currencies', sql: TRIP_CURRENCIES },
+  { version: 4, name: 'app_settings', sql: APP_SETTINGS },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 0;

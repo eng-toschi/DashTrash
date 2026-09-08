@@ -97,7 +97,7 @@ export default function ParticipantsScreen() {
                 <Row>
                   <Avatar name={person.name} seed={person.seed} size={38} />
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text variant="body" style={{ fontWeight: person.isMe ? '700' : '600' }}>
+                    <Text variant="body" strong={person.isMe}>
                       {person.name}
                       {person.isMe ? ' · você' : ''}
                     </Text>

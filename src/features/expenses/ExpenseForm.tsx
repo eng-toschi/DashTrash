@@ -26,10 +26,10 @@ import { useDatabase, useMutate, useQuery } from '@/state/database';
 import { fetchRate } from '@/services/fxRates';
 import { CATEGORY_LABELS, CATEGORY_ORDER, todayIso } from '@/state/format';
 import { CurrencyPicker } from './CurrencyPicker';
-import { Avatar, Button, Card, Chip, Divider, Row, SegmentedControl, Text } from '@/ui/components';
+import { Avatar, Button, Card, CategoryChip, Chip, Divider, Row, SegmentedControl, Text } from '@/ui/components';
 import { IconCheck, IconTrash } from '@/ui/icons';
 import { useTheme } from '@/ui/theme';
-import { MIN_TOUCH, RADIUS, SPACING } from '@/ui/tokens';
+import { FONT, MIN_TOUCH, RADIUS, SPACING } from '@/ui/tokens';
 
 const LOCALE = 'pt-BR';
 const DEFAULT_IOF_PERCENT = IOF_DEFAULT_PPM.credit_card / 10_000;
@@ -288,8 +288,10 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
               autoFocus={!editing}
               accessibilityLabel="Valor da despesa"
               style={{
-                fontSize: 46,
-                fontWeight: '700',
+                fontSize: 52,
+                lineHeight: 60,
+                letterSpacing: -1.2,
+                fontFamily: FONT.display,
                 color: t.text,
                 minWidth: 120,
                 textAlign: 'center',
@@ -332,7 +334,7 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
                     placeholderTextColor={t.textFaint}
                     keyboardType="decimal-pad"
                     accessibilityLabel="Taxa de câmbio"
-                    style={{ fontSize: 16, fontWeight: '700', color: t.text, minWidth: 90, textAlign: 'right' }}
+                    style={{ fontSize: 16, fontFamily: FONT.bold, color: t.text, minWidth: 90, textAlign: 'right' }}
                   />
                 </Row>
 
@@ -369,7 +371,7 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
                       onChangeText={setIofPercentText}
                       keyboardType="decimal-pad"
                       accessibilityLabel="Alíquota de IOF"
-                      style={{ fontSize: 16, fontWeight: '700', color: t.text, minWidth: 60, textAlign: 'right' }}
+                      style={{ fontSize: 16, fontFamily: FONT.bold, color: t.text, minWidth: 60, textAlign: 'right' }}
                     />
                     <Text variant="body" tone="muted">
                       %
@@ -388,14 +390,15 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
             placeholder="No que foi?"
             placeholderTextColor={t.textFaint}
             accessibilityLabel="Descrição"
-            style={{ fontSize: 16, fontWeight: '600', color: t.text, minHeight: MIN_TOUCH - 12 }}
+            style={{ fontSize: 16, fontFamily: FONT.semi, color: t.text, minHeight: MIN_TOUCH - 12 }}
           />
         </Card>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.sm }}>
           {CATEGORY_ORDER.map((key) => (
-            <Chip
+            <CategoryChip
               key={key}
+              category={key}
               label={CATEGORY_LABELS[key] ?? key}
               selected={key === category}
               onPress={() => { setCategory(key); }}
@@ -494,7 +497,7 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
                             accessibilityLabel={`Valor de ${person.display_name}`}
                             style={{
                               fontSize: 15,
-                              fontWeight: '700',
+                              fontFamily: FONT.bold,
                               color: t.text,
                               minWidth: 76,
                               textAlign: 'right',

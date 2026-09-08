@@ -92,7 +92,7 @@ export function CurrencyPicker({
               style={{ minHeight: 52, justifyContent: 'center' }}
             >
               <Row>
-                <Text variant="body" style={{ width: 54, fontWeight: '700' }}>
+                <Text variant="body" strong style={{ width: 54 }}>
                   {item.code}
                 </Text>
                 <Text variant="body" tone="muted" style={{ flex: 1 }}>

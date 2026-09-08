@@ -76,6 +76,38 @@ export const IconTrash = ({ size, color }: IconProps) => (
 );
 
 /** Um ícone por categoria da lista fechada do spec (§5.3). */
+export const IconSun = ({ size, color }: IconProps) => (
+  <Svg {...base(size)}>
+    <Circle cx="12" cy="12" r="4.2" stroke={color} strokeWidth={STROKE} />
+    <Path
+      d="M12 2.6v2.2M12 19.2v2.2M4.2 12H2M22 12h-2.2M6.4 6.4 4.9 4.9M19.1 19.1l-1.5-1.5M17.6 6.4l1.5-1.5M4.9 19.1l1.5-1.5"
+      stroke={color}
+      strokeWidth={STROKE}
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
+export const IconMoon = ({ size, color }: IconProps) => (
+  <Svg {...base(size)}>
+    <Path
+      d="M20 13.4A8.2 8.2 0 0 1 10.6 4a8.2 8.2 0 1 0 9.4 9.4z"
+      stroke={color}
+      strokeWidth={STROKE}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+/** Tema seguindo o sistema: metade sol, metade lua. */
+export const IconAuto = ({ size, color }: IconProps) => (
+  <Svg {...base(size)}>
+    <Circle cx="12" cy="12" r="8.4" stroke={color} strokeWidth={STROKE} />
+    <Path d="M12 3.6a8.4 8.4 0 0 1 0 16.8z" fill={color} stroke={color} strokeWidth={0.5} />
+  </Svg>
+);
+
 export const CATEGORY_ICONS: Readonly<Record<string, (p: IconProps) => React.JSX.Element>> = {
   restaurant: ({ size, color }: IconProps) => (
     <Svg {...base(size)}>

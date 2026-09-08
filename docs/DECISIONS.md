@@ -143,11 +143,14 @@ A tela de participantes mostra que o convite por link e QR chega junto com a sin
 vez de exibir um botão que não faz nada. Prometer o que ainda não existe é pior que mostrar o
 limite: quem usa precisa saber que, por ora, a viagem vive só naquele celular.
 
-## 2026-09-07 — Tema segue o sistema, sem seletor no app
+## 2026-09-07 — Tema segue o sistema, sem seletor no app — **revogada em 08/09**
 
 Claro e escuro saem dos mesmos tokens semânticos e acompanham a configuração do aparelho. Um
 seletor próprio seria mais uma linha em Ajustes para resolver algo que o sistema operacional já
 resolve.
+
+Errei o julgamento: o pedido veio no primeiro teste no aparelho ("faltou também a opção de dark
+mode"). Ver "Três estados de tema", no fim deste arquivo.
 
 ## 2026-09-07 — O Hermes não é o Node: `crypto` e `normalize` não existem lá
 
@@ -224,3 +227,75 @@ acento do nome do arquivo, senão "Japão" vira "jap-o".
 
 Geração local, via `expo-print`: sem servidor, sem upload, funcionando no voo de volta — que é
 onde a viagem costuma ser fechada.
+
+## 2026-09-08 — Três estados de tema, não dois
+
+O seletor tem **automático, claro e escuro** — não um interruptor liga/desliga. Um interruptor de
+dois estados obriga quem deixa o celular trocar sozinho ao anoitecer a abrir mão disso para poder
+escolher, e é justamente esse o padrão do aparelho.
+
+A preferência fica em `app_settings`, no banco do próprio aparelho, e **não** no estado da viagem:
+escolher escuro aqui não pode mudar a tela de mais ninguém quando a sincronização existir.
+
+O botão fica no cabeçalho da home, não escondido em Ajustes — que ainda nem existe. O ícone mostra
+o estado atual (sol, lua, círculo meio a meio) e a dica de acessibilidade diz o que o próximo
+toque faz, porque um botão que cicla três estados sem dizer o próximo é adivinhação.
+
+## 2026-09-08 — A cor da categoria é informação, não enfeite
+
+O primeiro corte das telas saiu cinza: ladrilho de ícone em `surfaceAlt`, chips iguais, barras do
+fechamento todas na cor de destaque. Ficou legível e ilegível ao mesmo tempo — dá para ler cada
+linha, mas não dá para varrer a lista e achar "os restaurantes".
+
+Cada categoria tem uma cor (`CATEGORY_COLORS`) e ela aparece nos três lugares em que a categoria
+aparece: o ladrilho do ícone na lista, o chip do formulário e a barra do fechamento. A home ganhou
+a mesma ideia para pessoas: a barra do card é uma faixa por pagador, na cor da pessoa, que responde
+de relance a "quem está bancando a viagem".
+
+O fundo do ladrilho é a **própria cor com alfa** (`withAlpha`), não um segundo hexadecimal por
+categoria. Duas tabelas de cor — uma para o claro, outra para o escuro — sairiam de sincronia na
+primeira categoria nova; com alfa, o ladrilho se apoia na superfície do tema, seja ela qual for.
+O alfa é maior no escuro, onde a mesma camada some no fundo.
+
+## 2026-09-08 — Com fonte própria não existe `fontWeight`
+
+As telas usam Bricolage Grotesque (títulos e números grandes) e Figtree (o resto). Cada peso é uma
+**família** carregada por nome — `Figtree_700Bold` —, e pedir `fontWeight: '700'` por cima disso
+funciona no iOS e sai errado no Android, que não sintetiza o peso: ou ignora, ou engorda o traço.
+
+Então o `fontWeight` foi eliminado do projeto. Componente próprio recebe `strong`; `TextInput`, que
+não passa pelo nosso `Text`, recebe `fontFamily` de `FONT` diretamente. `app/_layout` segura a
+splash até as fontes carregarem: sem isso a primeira pintura sai na fonte do sistema e troca na
+cara de quem está olhando, o que é mais feio que a espera.
+
+## 2026-09-08 — A escala de texto é transcrita dos artboards, não estimada
+
+Os tamanhos em `Text` saíram de uma varredura dos `design/*.dc.html`, não de palpite. O que os
+desenhos usam, e o que virou variante:
+
+| artboard                     | variante   |
+| ---------------------------- | ---------- |
+| 27–30 px Bricolage 700       | `display`  |
+| 19–21 px Bricolage 700       | `headline` |
+| 17 px Bricolage 700          | `title`    |
+| 15,5 px 650                  | `body`     |
+| 14 px 600                    | `label`    |
+| 12,5 px 500                  | `caption`  |
+| 11–11,5 px 600               | `micro`    |
+| 12 px 700, versal, ls 0.08em | `overline` |
+
+Três coisas mudaram de valor nessa conferência, e as três apareciam em toda tela: `body` estava no
+peso 500 (o desenho pede 650, e era isso que deixava as listas apagadas), `overline` estava a 11 px
+com espaçamento de 1 px (o desenho pede 12 e 0,96) e `label` estava a 13,5 em vez de 14.
+
+Onde o desenho usava dois tamanhos a um ou dois pixels de distância — 27 e 28, 19 e 21 — a variante
+ficou com um só. Essa distância não é intenção de design, é ruído de quem desenhou à mão; carregar
+as duas só cria a dúvida de qual usar. `RADIUS` e a paleta, conferidos no mesmo passe, já batiam
+exatamente com os artboards e não precisaram mudar.
+
+## 2026-09-08 — `Badge` para estado, `Chip` para toque
+
+Os selos dos desenhos ("Em curso", "2 de 4", "IOF 3,5%") têm 11 px e 5 px de respiro — metade do
+`Chip`. Usar `Chip` neles, que respeita os 38 px de alvo de toque, enchia a tela de botões falsos:
+tudo parecia clicável, nada dizia o que era estado e o que era ação. Daí dois componentes, com a
+regra na assinatura — `Badge` não recebe `onPress`.

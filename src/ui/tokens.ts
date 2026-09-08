@@ -11,10 +11,74 @@ export const RADIUS = { sm: 8, md: 14, lg: 20, xl: 24, pill: 999 } as const;
 /** Alvo mínimo de toque exigido pelas duas plataformas. */
 export const MIN_TOUCH = 44;
 
+/**
+ * Famílias carregadas em `app/_layout`. Com fonte própria não se usa
+ * `fontWeight`: cada peso é uma família diferente, e misturar os dois faz o
+ * Android renderizar errado.
+ */
 export const FONT = {
-  display: 'System',
-  body: 'System',
+  display: 'BricolageGrotesque_700Bold',
+  displaySemi: 'BricolageGrotesque_600SemiBold',
+  bold: 'Figtree_700Bold',
+  semi: 'Figtree_600SemiBold',
+  medium: 'Figtree_500Medium',
 } as const;
+
+/**
+ * Sombra suave dos cards. É o que separa o cartão do fundo — sem ela a tela
+ * vira retângulo com fio de borda, que foi exatamente o que aconteceu.
+ */
+export const SHADOW = {
+  card: {
+    shadowColor: '#1F1B16',
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  floating: {
+    shadowColor: '#1F1B16',
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+} as const;
+
+/** Uma cor por categoria, como no desenho. Barra e ícone usam a mesma. */
+export const CATEGORY_COLORS: Readonly<Record<string, string>> = {
+  restaurant: '#E8654F',
+  lodging: '#6D4AFF',
+  transport: '#E2A63C',
+  groceries: '#3FA97A',
+  flight: '#4A8FE0',
+  car: '#C97B3F',
+  activity: '#D65B9A',
+  shopping: '#A165D6',
+  fees: '#3FA9A2',
+  other: '#8A8076',
+};
+
+export function categoryColor(category: string): string {
+  return CATEGORY_COLORS[category] ?? CATEGORY_COLORS.other ?? '#8A8076';
+}
+
+/**
+ * Fundo do ladrilho do ícone: a mesma cor da categoria, translúcida.
+ *
+ * Translúcido em vez de um segundo hexadecimal por categoria porque assim o
+ * ladrilho se apoia na superfície do tema — clara ou escura — sem manter duas
+ * tabelas de cor que inevitavelmente saem de sincronia.
+ */
+export function withAlpha(hex: string, alpha: number): string {
+  const clamped = Math.max(0, Math.min(1, alpha));
+  return `${hex}${Math.round(clamped * 255).toString(16).padStart(2, '0').toUpperCase()}`;
+}
+
+/** No escuro o mesmo alfa some no fundo, então a camada é mais forte. */
+export function categoryTint(category: string, isDark: boolean): string {
+  return withAlpha(categoryColor(category), isDark ? 0.24 : 0.14);
+}
 
 export interface Palette {
   readonly bg: string;

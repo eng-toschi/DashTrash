@@ -13,7 +13,12 @@ describe('migrações', () => {
 
     expect(result.from).toBe(0);
     expect(result.to).toBe(LATEST_VERSION);
-    expect(result.applied).toEqual(['1_initial', '2_pix_iof_subgroups', '3_trip_currencies']);
+    expect(result.applied).toEqual([
+      '1_initial',
+      '2_pix_iof_subgroups',
+      '3_trip_currencies',
+      '4_app_settings',
+    ]);
   });
 
   it('rodar de novo não faz nada', () => {

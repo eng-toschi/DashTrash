@@ -3,16 +3,28 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_BUILD } from '@/config/app';
 import { deleteTrip } from '@/commands';
-import { computeBalances } from '@/domain/balance';
+import { computeBalances, expenseInBase } from '@/domain/balance';
+import { formatMoney } from '@/domain/money';
 import { findMe, listParticipants, listTrips, loadLedger } from '@/db/repositories';
 import { shareTripDossier } from '@/features/report/shareDossier';
 import { useDatabase, useMutate, useQuery } from '@/state/database';
 import { todayIso } from '@/state/format';
 import { periodLabel } from '@/state/format';
-import { Avatar, Button, Card, Divider, EmptyState, MoneyText, Row, Text } from '@/ui/components';
-import { IconPlus, IconShare, IconTrash } from '@/ui/icons';
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  Divider,
+  EmptyState,
+  MoneyText,
+  Row,
+  Text,
+  ThemeToggle,
+} from '@/ui/components';
+import { IconCheck, IconPlus, IconShare, IconTrash } from '@/ui/icons';
 import { useTheme } from '@/ui/theme';
-import { MIN_TOUCH, RADIUS, SPACING } from '@/ui/tokens';
+import { MIN_TOUCH, RADIUS, SPACING, personColor } from '@/ui/tokens';
 
 interface TripCard {
   readonly id: string;
@@ -24,6 +36,10 @@ interface TripCard {
   readonly people: { id: string; name: string; seed: string }[];
   readonly spentCents: number;
   readonly expenseCount: number;
+  /** Quanto cada pagador adiantou, na moeda-base, para a barra de cores. */
+  readonly byPayer: { id: string; seed: string; cents: number }[];
+  /** Ninguém deve nada a ninguém — o que a viagem encerrada quer dizer. */
+  readonly settled: boolean;
 }
 
 export default function TripsScreen() {
@@ -37,7 +53,17 @@ export default function TripsScreen() {
       const ledger = loadLedger(db, trip.id);
       const balances = computeBalances(ledger);
       const me = findMe(db, trip.id);
-      const spent = ledger.expenses.reduce((total, e) => total + e.amountCents, 0);
+      const people = listParticipants(db, trip.id);
+
+      // Tudo na moeda-base: somar centavos de moedas diferentes daria um total
+      // que não quer dizer nada, e é ele que a barra e o rodapé mostram.
+      const paid = new Map<string, number>();
+      let spent = 0;
+      for (const expense of ledger.expenses) {
+        const cents = expenseInBase(expense, trip.base_currency).totalCents;
+        spent += cents;
+        paid.set(expense.paidBy, (paid.get(expense.paidBy) ?? 0) + cents);
+      }
 
       return {
         id: trip.id,
@@ -49,13 +75,14 @@ export default function TripsScreen() {
           me === undefined
             ? undefined
             : balances.balances.find((b) => b.participantId === me.id)?.cents,
-        people: listParticipants(db, trip.id).map((p) => ({
-          id: p.id,
-          name: p.display_name,
-          seed: p.avatar_seed,
-        })),
+        people: people.map((p) => ({ id: p.id, name: p.display_name, seed: p.avatar_seed })),
         spentCents: spent,
         expenseCount: ledger.expenses.length,
+        byPayer: people
+          .map((p) => ({ id: p.id, seed: p.avatar_seed, cents: paid.get(p.id) ?? 0 }))
+          .filter((p) => p.cents > 0)
+          .sort((a, b) => b.cents - a.cents),
+        settled: balances.balances.every((b) => b.cents === 0),
       };
     }),
   );
@@ -93,17 +120,15 @@ export default function TripsScreen() {
           gap: SPACING.md,
         }}
       >
-        <View style={{ gap: 2, marginBottom: SPACING.xs }}>
-          <Row style={{ justifyContent: 'space-between' }}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xs }}>
+          <View style={{ gap: 2, flex: 1 }}>
             <Text variant="label" tone="muted">
-              Suas contas de viagem
+              Suas contas de viagem · {APP_BUILD}
             </Text>
-            <Text variant="caption" tone="faint">
-              {APP_BUILD}
-            </Text>
-          </Row>
-          <Text variant="display">Minhas viagens</Text>
-        </View>
+            <Text variant="display">Minhas viagens</Text>
+          </View>
+          <ThemeToggle />
+        </Row>
 
         {trips.length === 0 ? (
           <EmptyState
@@ -117,11 +142,12 @@ export default function TripsScreen() {
             <View style={{ gap: SPACING.lg }}>
               <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <View style={{ gap: 4, flex: 1 }}>
-                  <Text variant="title">{trip.name}</Text>
+                  <Text variant="headline">{trip.name}</Text>
                   <Text variant="caption" tone="muted">
                     {[trip.period, `${String(trip.people.length)} pessoas`].filter(Boolean).join(' · ')}
                   </Text>
                 </View>
+                <Badge label="Em curso" tone="positive" uppercase />
               </Row>
 
               <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -134,7 +160,7 @@ export default function TripsScreen() {
                         : 'Você deve'}
                   </Text>
                   <MoneyText
-                    variant="title"
+                    variant="display"
                     value={{
                       cents: trip.myBalanceCents ?? trip.spentCents,
                       currency: trip.baseCurrency,
@@ -154,11 +180,29 @@ export default function TripsScreen() {
                 </Row>
               </Row>
 
-              <Text variant="caption" tone="faint">
-                {trip.expenseCount === 0
-                  ? 'Nenhuma despesa lançada'
-                  : `${String(trip.expenseCount)} despesas`}
-              </Text>
+              <View style={{ gap: SPACING.sm }}>
+                {/* Uma faixa por pagador, na cor da pessoa: mostra num relance
+                    quem está bancando a viagem, que é a pergunta real por trás
+                    do saldo. As larguras são `flex`, então nunca somam 99,7%. */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    height: 6,
+                    borderRadius: RADIUS.pill,
+                    overflow: 'hidden',
+                    backgroundColor: t.surfaceAlt,
+                  }}
+                >
+                  {trip.byPayer.map((payer) => (
+                    <View key={payer.id} style={{ flex: payer.cents, backgroundColor: personColor(payer.seed) }} />
+                  ))}
+                </View>
+                <Text variant="caption" tone="muted">
+                  {trip.expenseCount === 0
+                    ? 'Nenhuma despesa lançada'
+                    : `${formatMoney({ cents: trip.spentCents, currency: trip.baseCurrency }, 'pt-BR')} gastos · ${String(trip.expenseCount)} despesas`}
+                </Text>
+              </View>
             </View>
           </Card>
         ))}
@@ -184,9 +228,12 @@ export default function TripsScreen() {
                       {[trip.period, `${String(trip.expenseCount)} despesas`].filter(Boolean).join(' · ')}
                     </Text>
                   </View>
-                  <Text variant="caption" tone="muted">
-                    Encerrada
-                  </Text>
+                  <Row gap={SPACING.xs}>
+                    {trip.settled ? <IconCheck size={15} color={t.positive} /> : null}
+                    <Text variant="caption" tone={trip.settled ? 'positive' : 'muted'}>
+                      {trip.settled ? 'Tudo acertado' : 'Encerrada'}
+                    </Text>
+                  </Row>
                 </Row>
               </Pressable>
 

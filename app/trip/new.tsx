@@ -9,7 +9,7 @@ import { useMutate } from '@/state/database';
 import { Avatar, Button, Card, Chip, Divider, Row, Text } from '@/ui/components';
 import { IconPlus, IconTrash } from '@/ui/icons';
 import { useTheme } from '@/ui/theme';
-import { RADIUS, SPACING } from '@/ui/tokens';
+import { FONT, RADIUS, SPACING } from '@/ui/tokens';
 
 export default function NewTripScreen() {
   const t = useTheme();
@@ -77,7 +77,7 @@ export default function NewTripScreen() {
             onChangeText={setName}
             placeholder="Para onde vocês vão?"
             placeholderTextColor={t.textFaint}
-            style={{ fontSize: 19, fontWeight: '700', color: t.text, minHeight: 32 }}
+            style={{ fontSize: 20, letterSpacing: -0.2, fontFamily: FONT.display, color: t.text, minHeight: 34 }}
             accessibilityLabel="Nome da viagem"
             autoFocus
           />
@@ -124,7 +124,7 @@ export default function NewTripScreen() {
           <Card padded={false}>
             <Row style={{ paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md }}>
               <Avatar name="Você" seed="me" size={32} />
-              <Text variant="body" style={{ flex: 1, fontWeight: '700' }}>
+              <Text variant="body" strong style={{ flex: 1 }}>
                 Você
               </Text>
             </Row>

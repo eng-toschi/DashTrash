@@ -3,13 +3,14 @@ import { Pressable, ScrollView, View, type DimensionValue } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { computeBalances, expenseInBase, totalSpent } from '@/domain/balance';
+import { formatMoney } from '@/domain/money';
 import { findMe, getTrip, listExpenses, listParticipants, listShares, loadLedger } from '@/db/repositories';
 import { useQuery } from '@/state/database';
 import { dayLabel } from '@/state/format';
-import { Avatar, Card, Chip, EmptyState, MoneyText, Row, SegmentedControl, Text } from '@/ui/components';
+import { Avatar, Badge, Button, Card, EmptyState, MoneyText, Row, SegmentedControl, Text } from '@/ui/components';
 import { CATEGORY_ICONS, IconBack, IconPlus, IconUsers } from '@/ui/icons';
-import { useTheme } from '@/ui/theme';
-import { RADIUS, SPACING } from '@/ui/tokens';
+import { useTheme, useThemeControl } from '@/ui/theme';
+import { RADIUS, SPACING, categoryColor, categoryTint } from '@/ui/tokens';
 
 interface ExpenseCard {
   readonly id: string;
@@ -34,6 +35,7 @@ interface TripView {
 
 export default function TripScreen() {
   const t = useTheme();
+  const { isDark } = useThemeControl();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const tripId = typeof params.id === 'string' ? params.id : '';
@@ -73,7 +75,7 @@ export default function TripScreen() {
         category: row.category,
         spentOn: row.spent_on,
         payerName: nameById.get(row.paid_by) ?? '—',
-        amountLabel: `${row.currency} ${String(row.amount_cents / 100)}`,
+        amountLabel: formatMoney({ cents: row.amount_cents, currency: row.currency }, 'pt-BR'),
         peopleCount: shares.length,
         totalPeople: people.length,
         myImpactCents: myPayment - myShare,
@@ -131,7 +133,7 @@ export default function TripScreen() {
               <Text variant="caption" tone="muted">
                 Total da viagem
               </Text>
-              <MoneyText variant="title" tone="default" value={{ cents: view.totalCents, currency: view.baseCurrency }} />
+              <MoneyText variant="headline" tone="default" value={{ cents: view.totalCents, currency: view.baseCurrency }} />
             </View>
             <View style={{ width: 1, height: 34, backgroundColor: t.border }} />
             <View style={{ gap: 2, alignItems: 'flex-end' }}>
@@ -139,7 +141,7 @@ export default function TripScreen() {
                 Seu saldo
               </Text>
               <MoneyText
-                variant="title"
+                variant="headline"
                 signed
                 value={{ cents: view.myBalanceCents ?? 0, currency: view.baseCurrency }}
               />
@@ -182,29 +184,29 @@ export default function TripScreen() {
                   return (
                     <Card
                       key={expense.id}
-                      style={{ paddingVertical: SPACING.md }}
+                      style={{ borderRadius: RADIUS.lg, paddingVertical: 14, paddingHorizontal: 16 }}
                       onPress={() => { router.push(`/trip/${tripId}/expense/${expense.id}`); }}
                     >
-                      <Row>
+                      <Row gap={13}>
                         <View
                           style={{
                             width: 42,
                             height: 42,
                             borderRadius: RADIUS.md,
-                            backgroundColor: t.surfaceAlt,
+                            backgroundColor: categoryTint(expense.category, isDark),
                             alignItems: 'center',
                             justifyContent: 'center',
                           }}
                         >
-                          {Icon === undefined ? null : <Icon size={21} color={t.textMuted} />}
+                          {Icon === undefined ? null : <Icon size={21} color={categoryColor(expense.category)} />}
                         </View>
                         <View style={{ flex: 1, gap: 3 }}>
                           <Row gap={SPACING.sm}>
-                            <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, fontWeight: '600' }}>
+                            <Text variant="body" numberOfLines={1} strong style={{ flexShrink: 1 }}>
                               {expense.description}
                             </Text>
                             {expense.peopleCount < expense.totalPeople ? (
-                              <Chip
+                              <Badge
                                 label={`${String(expense.peopleCount)} de ${String(expense.totalPeople)}`}
                                 tone="accent"
                               />
@@ -215,7 +217,7 @@ export default function TripScreen() {
                           </Text>
                         </View>
                         <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                          <Text variant="caption" tone="muted">
+                          <Text variant="micro" tone="muted">
                             {expense.myImpactCents >= 0 ? 'emprestou' : 'você deve'}
                           </Text>
                           <MoneyText
@@ -265,21 +267,7 @@ export default function TripScreen() {
               </View>
             </Card>
 
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => { router.push(`/trip/${tripId}/closing`); }}
-              style={{
-                backgroundColor: t.accent,
-                borderRadius: RADIUS.pill,
-                minHeight: 54,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text variant="body" style={{ color: t.onAccent, fontWeight: '700', fontSize: 16 }}>
-                Fechar a viagem
-              </Text>
-            </Pressable>
+            <Button label="Fechar a viagem" onPress={() => { router.push(`/trip/${tripId}/closing`); }} />
           </View>
         )}
       </ScrollView>

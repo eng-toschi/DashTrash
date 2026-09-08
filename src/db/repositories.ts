@@ -199,6 +199,20 @@ export function localActorId(db: Database): string {
   return db.get<{ actor_id: string }>('SELECT actor_id FROM device_state WHERE id = 1')?.actor_id ?? '';
 }
 
+/**
+ * Preferências do aparelho (tema, por enquanto).
+ *
+ * Fora do outbox de propósito: escolher o tema escuro num celular não é
+ * decisão do grupo, e sincronizar isso mudaria a tela do outro sem motivo.
+ */
+export function getSetting(db: Database, key: string): string | undefined {
+  return db.get<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', [key])?.value;
+}
+
+export function setSetting(db: Database, key: string, value: string): void {
+  db.run('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)', [key, value]);
+}
+
 /** Moedas escolhidas para a viagem. A moeda-base vem sempre primeiro. */
 export function listTripCurrencies(db: Database, tripId: string): string[] {
   const codes = db
