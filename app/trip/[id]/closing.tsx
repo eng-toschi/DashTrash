@@ -25,7 +25,7 @@ import { dossierFileName, renderTripDossier } from '@/features/report/generateDo
 import { useDatabase, useMutate, useQuery } from '@/state/database';
 import { CATEGORY_LABELS, todayIso } from '@/state/format';
 import { Avatar, Button, Card, Chip, Divider, MoneyText, Row, SegmentedControl, Text } from '@/ui/components';
-import { IconBack, IconCopy } from '@/ui/icons';
+import { IconBack, IconCopy, IconShare } from '@/ui/icons';
 import { useTheme } from '@/ui/theme';
 import { RADIUS, SPACING } from '@/ui/tokens';
 
@@ -128,25 +128,50 @@ export default function ClosingScreen() {
    * O dossiê é gerado no aparelho: nada sai daqui para servidor nenhum, e
    * funciona no avião de volta, que é onde a viagem costuma ser fechada.
    */
-  const exportDossier = (): void => {
-    void (async () => {
-      try {
-        const html = renderTripDossier(db, tripId, todayIso());
-        const { uri } = await Print.printToFileAsync({ html });
+  const exportDossier = async (): Promise<void> => {
+    try {
+      const html = renderTripDossier(db, tripId, todayIso());
+      const { uri } = await Print.printToFileAsync({ html });
 
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(uri, {
-            mimeType: 'application/pdf',
-            UTI: 'com.adobe.pdf',
-            dialogTitle: dossierFileName(data.name),
-          });
-        } else {
-          await Print.printAsync({ html });
-        }
-      } catch {
-        Alert.alert('Não consegui gerar o dossiê', 'Tente de novo em alguns segundos.');
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          UTI: 'com.adobe.pdf',
+          dialogTitle: dossierFileName(data.name),
+        });
+      } else {
+        await Print.printAsync({ html });
       }
-    })();
+    } catch {
+      Alert.alert('Não consegui gerar o dossiê', 'Tente de novo em alguns segundos.');
+    }
+  };
+
+  /**
+   * Encerrar gera o dossiê ANTES de arquivar e sair.
+   *
+   * A ordem importa: depois de sair da tela o componente já foi embora, e a
+   * geração ficaria pela metade. Além disso, é o momento em que o documento faz
+   * sentido — a viagem acabou de virar história.
+   */
+  const finishTrip = (): void => {
+    Alert.alert(
+      'Encerrar viagem',
+      `"${data.name}" vai para as encerradas. Antes disso eu gero o dossiê em PDF para você guardar.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Encerrar',
+          onPress: () => {
+            void (async () => {
+              await exportDossier();
+              mutate((database, ctx) => { archiveTrip(database, ctx, tripId); });
+              router.dismissTo('/');
+            })();
+          },
+        },
+      ],
+    );
   };
 
   const copyPix = (transfer: Transfer): void => {
@@ -178,7 +203,14 @@ export default function ClosingScreen() {
             <IconBack size={24} color={t.text} />
           </Pressable>
           <Text variant="title">Fechamento</Text>
-          <View style={{ width: 24 }} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Gerar dossiê da viagem em PDF"
+            onPress={() => { void exportDossier(); }}
+            hitSlop={12}
+          >
+            <IconShare size={22} color={t.text} />
+          </Pressable>
         </Row>
       </View>
 
@@ -381,23 +413,11 @@ export default function ClosingScreen() {
           gap: SPACING.sm,
         }}
       >
-        <Button label="Dossiê da viagem (PDF)" variant="secondary" onPress={exportDossier} />
         <Button
-          label="Encerrar viagem"
+          label="Encerrar viagem e gerar dossiê"
           variant="inverse"
           disabled={!settled}
-          onPress={() => {
-            Alert.alert('Encerrar viagem', `"${data.name}" vai para as encerradas. O histórico continua lá.`, [
-              { text: 'Cancelar', style: 'cancel' },
-              {
-                text: 'Encerrar',
-                onPress: () => {
-                  mutate((db, ctx) => { archiveTrip(db, ctx, tripId); });
-                  router.dismissTo('/');
-                },
-              },
-            ]);
-          }}
+          onPress={finishTrip}
         />
         {settled ? null : (
           <Text variant="caption" tone="muted" style={{ textAlign: 'center' }}>

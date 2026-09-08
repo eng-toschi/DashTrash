@@ -62,6 +62,13 @@ export const IconInfo = ({ size, color }: IconProps) => (
   </Svg>
 );
 
+export const IconShare = ({ size, color }: IconProps) => (
+  <Svg {...base(size)}>
+    <Path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" stroke={color} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M16 6l-4-4-4 4M12 2v14" stroke={color} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
 export const IconTrash = ({ size, color }: IconProps) => (
   <Svg {...base(size)}>
     <Path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" stroke={color} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round" />
