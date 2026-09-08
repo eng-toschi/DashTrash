@@ -161,6 +161,60 @@ export function archiveTrip(
 }
 
 /**
+ * Descarta a viagem.
+ *
+ * É tombstone, como toda exclusão aqui: a linha continua no banco, a operação
+ * viaja para os outros aparelhos, e `restoreTrip` desfaz. Some da lista, não do
+ * histórico — arrependimento depois de apagar uma viagem inteira é caro demais
+ * para depender de backup.
+ */
+export function deleteTrip(
+  db: Database,
+  ctx: CommandContext,
+  tripId: string,
+): Result<void, CommandError> {
+  if (getTrip(db, tripId) === undefined) return err({ code: 'trip_not_found' });
+
+  db.transaction(() => {
+    db.run('UPDATE trips SET deleted_at = ?, lamport = lamport + 1, updated_at = ? WHERE id = ?', [
+      ctx.now(),
+      ctx.now(),
+      tripId,
+    ]);
+    record(db, ctx, {
+      tripId,
+      entity: 'trip',
+      entityId: tripId,
+      kind: 'delete',
+      payload: { id: tripId, deletedAt: ctx.now() },
+    });
+  });
+
+  return ok(undefined);
+}
+
+export function restoreTrip(db: Database, ctx: CommandContext, tripId: string): Result<void, CommandError> {
+  const exists = db.get<{ id: string }>('SELECT id FROM trips WHERE id = ?', [tripId]);
+  if (exists === undefined) return err({ code: 'trip_not_found' });
+
+  db.transaction(() => {
+    db.run('UPDATE trips SET deleted_at = NULL, lamport = lamport + 1, updated_at = ? WHERE id = ?', [
+      ctx.now(),
+      tripId,
+    ]);
+    record(db, ctx, {
+      tripId,
+      entity: 'trip',
+      entityId: tripId,
+      kind: 'upsert',
+      payload: rowOf(db, 'trips', tripId),
+    });
+  });
+
+  return ok(undefined);
+}
+
+/**
  * Define quais moedas a viagem usa (§ escolhido na abertura).
  *
  * A moeda-base entra sempre, mesmo que não venha na lista: o acerto acontece

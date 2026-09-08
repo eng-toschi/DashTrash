@@ -1,15 +1,18 @@
-import { ScrollView, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_BUILD } from '@/config/app';
+import { deleteTrip } from '@/commands';
 import { computeBalances } from '@/domain/balance';
 import { findMe, listParticipants, listTrips, loadLedger } from '@/db/repositories';
-import { useQuery } from '@/state/database';
+import { shareTripDossier } from '@/features/report/shareDossier';
+import { useDatabase, useMutate, useQuery } from '@/state/database';
+import { todayIso } from '@/state/format';
 import { periodLabel } from '@/state/format';
-import { Avatar, Button, Card, EmptyState, MoneyText, Row, Text } from '@/ui/components';
-import { IconPlus } from '@/ui/icons';
+import { Avatar, Button, Card, Divider, EmptyState, MoneyText, Row, Text } from '@/ui/components';
+import { IconPlus, IconShare, IconTrash } from '@/ui/icons';
 import { useTheme } from '@/ui/theme';
-import { RADIUS, SPACING } from '@/ui/tokens';
+import { MIN_TOUCH, RADIUS, SPACING } from '@/ui/tokens';
 
 interface TripCard {
   readonly id: string;
@@ -26,6 +29,8 @@ interface TripCard {
 export default function TripsScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const mutate = useMutate();
+  const { db } = useDatabase();
 
   const trips = useQuery<TripCard[]>((db) =>
     listTrips(db).map((trip) => {
@@ -54,6 +59,26 @@ export default function TripsScreen() {
       };
     }),
   );
+
+  /**
+   * Descartar pede confirmação e diz o que se perde. É tombstone no banco, mas
+   * a tela não deve prometer um "desfazer" que ainda não existe em lugar
+   * nenhum — então o aviso sugere gerar o dossiê antes.
+   */
+  const confirmDiscard = (tripId: string, tripName: string): void => {
+    Alert.alert(
+      'Descartar viagem',
+      `"${tripName}" sai da lista. Se quiser guardar as contas, gere o dossiê em PDF antes.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Descartar',
+          style: 'destructive',
+          onPress: () => { mutate((database, ctx) => deleteTrip(database, ctx, tripId)); },
+        },
+      ],
+    );
+  };
 
   const active = trips.filter((trip) => !trip.archived);
   const archived = trips.filter((trip) => trip.archived);
@@ -145,18 +170,60 @@ export default function TripsScreen() {
         ) : null}
 
         {archived.map((trip) => (
-          <Card key={trip.id} onPress={() => { router.push(`/trip/${trip.id}`); }} style={{ backgroundColor: 'transparent' }}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <View style={{ gap: 3 }}>
-                <Text variant="body">{trip.name}</Text>
-                <Text variant="caption" tone="faint">
-                  {trip.period ?? 'sem datas'}
-                </Text>
-              </View>
-              <Text variant="caption" tone="muted">
-                Tudo acertado
-              </Text>
-            </Row>
+          <Card key={trip.id} style={{ backgroundColor: 'transparent' }}>
+            <View style={{ gap: SPACING.md }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Abrir ${trip.name}`}
+                onPress={() => { router.push(`/trip/${trip.id}`); }}
+              >
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <View style={{ gap: 3 }}>
+                    <Text variant="body">{trip.name}</Text>
+                    <Text variant="caption" tone="faint">
+                      {[trip.period, `${String(trip.expenseCount)} despesas`].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                  <Text variant="caption" tone="muted">
+                    Encerrada
+                  </Text>
+                </Row>
+              </Pressable>
+
+              <Divider />
+
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Gerar dossiê de ${trip.name}`}
+                  onPress={() => { void shareTripDossier(db, trip.id, trip.name, todayIso()); }}
+                  hitSlop={8}
+                  style={{ minHeight: MIN_TOUCH, justifyContent: 'center' }}
+                >
+                  <Row gap={SPACING.sm}>
+                    <IconShare size={17} color={t.accent} />
+                    <Text variant="label" tone="accent">
+                      Dossiê em PDF
+                    </Text>
+                  </Row>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Descartar ${trip.name}`}
+                  onPress={() => { confirmDiscard(trip.id, trip.name); }}
+                  hitSlop={8}
+                  style={{ minHeight: MIN_TOUCH, justifyContent: 'center' }}
+                >
+                  <Row gap={SPACING.sm}>
+                    <IconTrash size={17} color={t.textMuted} />
+                    <Text variant="label" tone="muted">
+                      Descartar
+                    </Text>
+                  </Row>
+                </Pressable>
+              </Row>
+            </View>
           </Card>
         ))}
       </ScrollView>

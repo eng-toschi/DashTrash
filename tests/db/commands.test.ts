@@ -6,9 +6,11 @@ import {
   createExpense,
   createTrip,
   deleteExpense,
+  deleteTrip,
   linkParticipantToUser,
   recordSettlement,
   restoreExpense,
+  restoreTrip,
   setTripCurrencies,
   updateExpense,
 } from '@/commands/index';
@@ -440,5 +442,35 @@ describe('moedas da viagem', () => {
     expect(addTripCurrency(db, ctx, tripId, 'EUR').ok).toBe(true);
     expect(addTripCurrency(db, ctx, tripId, 'EUR').ok).toBe(true);
     expect(listTripCurrencies(db, tripId)).toEqual(['BRL', 'JPY', 'EUR']);
+  });
+});
+
+describe('descartar viagem', () => {
+  it('some da lista, mas continua no banco', () => {
+    const { db, ctx, tripId } = viagemComQuatro();
+    expect(deleteTrip(db, ctx, tripId).ok).toBe(true);
+
+    expect(listTrips(db)).toHaveLength(0);
+    // Tombstone: apagar uma viagem inteira sem volta é caro demais.
+    const linha = db.get<{ deleted_at: string | null }>('SELECT deleted_at FROM trips WHERE id = ?', [
+      tripId,
+    ]);
+    expect(linha?.deleted_at).not.toBeNull();
+  });
+
+  it('dá para trazer de volta', () => {
+    const { db, ctx, tripId } = viagemComQuatro();
+    deleteTrip(db, ctx, tripId);
+    expect(restoreTrip(db, ctx, tripId).ok).toBe(true);
+    expect(listTrips(db)).toHaveLength(1);
+  });
+
+  it('emite uma operação de exclusão para os outros aparelhos', () => {
+    const { db, ctx, tripId } = viagemComQuatro();
+    deleteTrip(db, ctx, tripId);
+
+    const ultima = pendingOps(db).at(-1);
+    expect(ultima?.entity).toBe('trip');
+    expect(ultima?.kind).toBe('delete');
   });
 });

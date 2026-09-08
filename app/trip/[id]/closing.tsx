@@ -3,8 +3,6 @@ import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { archiveTrip, recordSettlement } from '@/commands';
 import {
   getTrip,
@@ -21,7 +19,7 @@ import { formatMoney } from '@/domain/money';
 import { buildPixPayload, parsePixKey } from '@/domain/pix';
 import { computeRealDebts, paymentOptions, simplifyDebts, type Transfer } from '@/domain/settle';
 import { convertCents } from '@/domain/fx';
-import { dossierFileName, renderTripDossier } from '@/features/report/generateDossier';
+import { shareTripDossier } from '@/features/report/shareDossier';
 import { useDatabase, useMutate, useQuery } from '@/state/database';
 import { CATEGORY_LABELS, todayIso } from '@/state/format';
 import { Avatar, Button, Card, Chip, Divider, MoneyText, Row, SegmentedControl, Text } from '@/ui/components';
@@ -129,22 +127,7 @@ export default function ClosingScreen() {
    * funciona no avião de volta, que é onde a viagem costuma ser fechada.
    */
   const exportDossier = async (): Promise<void> => {
-    try {
-      const html = renderTripDossier(db, tripId, todayIso());
-      const { uri } = await Print.printToFileAsync({ html });
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          UTI: 'com.adobe.pdf',
-          dialogTitle: dossierFileName(data.name),
-        });
-      } else {
-        await Print.printAsync({ html });
-      }
-    } catch {
-      Alert.alert('Não consegui gerar o dossiê', 'Tente de novo em alguns segundos.');
-    }
+    await shareTripDossier(db, tripId, data.name, todayIso());
   };
 
   /**
