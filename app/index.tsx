@@ -1,6 +1,7 @@
 import { ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { APP_BUILD } from '@/config/app';
 import { computeBalances } from '@/domain/balance';
 import { findMe, listParticipants, listTrips, loadLedger } from '@/db/repositories';
 import { useQuery } from '@/state/database';
@@ -68,9 +69,14 @@ export default function TripsScreen() {
         }}
       >
         <View style={{ gap: 2, marginBottom: SPACING.xs }}>
-          <Text variant="label" tone="muted">
-            Suas contas de viagem
-          </Text>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text variant="label" tone="muted">
+              Suas contas de viagem
+            </Text>
+            <Text variant="caption" tone="faint">
+              {APP_BUILD}
+            </Text>
+          </Row>
           <Text variant="display">Minhas viagens</Text>
         </View>
 
