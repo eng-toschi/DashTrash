@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { computeBalances, type TripLedger } from '@/domain/balance';
 import { sumCents } from '@/domain/money';
+import { convertCents } from '@/domain/fx';
 import { DomainError } from '@/domain/result';
 import { applyTransfers, computeRealDebts, paymentOptions, simplifyDebts } from '@/domain/settle';
 import { ledgerArbitrary } from './_trips';
@@ -362,6 +363,32 @@ describe('em que moeda pagar', () => {
   it('não repete a moeda-base quando ela vem na lista de alternativas', () => {
     const options = paymentOptions(transfer, 'BRL', [{ currency: 'BRL', ratePpm: 1_000_000 }]);
     expect(options).toHaveLength(1);
+  });
+
+  it('VALOR PEQUENO em moeda grossa arredonda para mais — e isso precisa aparecer', () => {
+    // Caso real do teste em aparelho: uma dívida de R$ 0,03 oferecida em euro
+    // vira € 0,01, que equivale a R$ 0,06. Quem tocasse no botão pagava o dobro
+    // e o saldo virava. A conversão não mente; a TELA é que precisa mostrar a
+    // diferença em vez de esconder.
+    const troco = { fromId: 'bruno', toId: 'ana', cents: 5 };
+    const [, emEuros] = paymentOptions(troco, 'BRL', [{ currency: 'EUR', ratePpm: 6_200_000 }]);
+
+    expect(emEuros?.cents).toBe(1);
+    const deVolta = convertCents(emEuros?.cents ?? 0, 'EUR', 'BRL', 6_200_000);
+    expect(deVolta).toBe(6);
+    expect(deVolta - troco.cents).toBe(1);
+  });
+
+  it('valor menor que o menor centavo da moeda vira zero, e não dá para pagar', () => {
+    // R$ 0,03 em euro não chega a um centavo: arredonda para zero, e zero não é
+    // pagamento. A tela desabilita em vez de registrar um acerto vazio.
+    const troco = { fromId: 'bruno', toId: 'ana', cents: 3 };
+    const [, emEuros] = paymentOptions(troco, 'BRL', [{ currency: 'EUR', ratePpm: 6_200_000 }]);
+    expect(emEuros?.cents).toBe(0);
+
+    const migalha = { fromId: 'bruno', toId: 'ana', cents: 1 };
+    const [, emIenes] = paymentOptions(migalha, 'BRL', [{ currency: 'JPY', ratePpm: 37_000 }]);
+    expect(emIenes?.cents).toBe(0);
   });
 
   it('a taxa devolvida é a que fecha o saldo ao gravar o acerto', () => {

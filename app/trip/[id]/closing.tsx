@@ -4,13 +4,21 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { archiveTrip, recordSettlement } from '@/commands';
-import { getTrip, listExpenses, listParticipants, loadLedger } from '@/db/repositories';
+import {
+  getTrip,
+  listExpenses,
+  listParticipants,
+  listRates,
+  listTripCurrencies,
+  loadLedger,
+} from '@/db/repositories';
 import { computeBalances, totalIof, totalSpent } from '@/domain/balance';
 import { summarizeByCategory } from '@/domain/summary';
-import { RATE_SCALE } from '@/domain/fx';
+import { selectRateForDate } from '@/domain/fx';
 import { formatMoney } from '@/domain/money';
 import { buildPixPayload, parsePixKey } from '@/domain/pix';
 import { computeRealDebts, paymentOptions, simplifyDebts, type Transfer } from '@/domain/settle';
+import { convertCents } from '@/domain/fx';
 import { useMutate, useQuery } from '@/state/database';
 import { CATEGORY_LABELS, todayIso } from '@/state/format';
 import { Avatar, Button, Card, Chip, Divider, MoneyText, Row, SegmentedControl, Text } from '@/ui/components';
@@ -36,6 +44,7 @@ export default function ClosingScreen() {
   const params = useLocalSearchParams();
   const tripId = typeof params.id === 'string' ? params.id : '';
   const [mode, setMode] = useState<'simple' | 'real'>('simple');
+  const [payCurrency, setPayCurrency] = useState<string | undefined>(undefined);
 
   const data = useQuery((db) => {
     const trip = getTrip(db, tripId);
@@ -62,10 +71,16 @@ export default function ClosingScreen() {
       trip.base_currency,
     );
 
-    // Moedas realmente usadas na viagem, com a taxa mais recente de cada uma.
+    // Moedas da viagem que têm cotação conhecida: sem taxa não dá para oferecer
+    // o acerto naquela moeda sem inventar número.
+    const today = todayIso();
     const alternatives = new Map<string, number>();
-    for (const row of listExpenses(db, tripId)) {
-      if (row.currency !== trip.base_currency) alternatives.set(row.currency, row.fx_rate_ppm);
+    for (const code of listTripCurrencies(db, tripId)) {
+      if (code === trip.base_currency) continue;
+      const cached = selectRateForDate(listRates(db, trip.base_currency, code), today);
+      const fromExpense = listExpenses(db, tripId).find((row) => row.currency === code)?.fx_rate_ppm;
+      const ratePpm = cached?.ratePpm ?? fromExpense;
+      if (ratePpm !== undefined) alternatives.set(code, ratePpm);
     }
 
     const report = computeBalances(ledger);
@@ -87,6 +102,7 @@ export default function ClosingScreen() {
   if (data === undefined) return <View style={{ flex: 1, backgroundColor: t.bg }} />;
 
   const transfers: Transfer[] = mode === 'simple' ? data.simple : data.real;
+  const selectedCurrency = payCurrency ?? data.baseCurrency;
   const settled = transfers.length === 0;
   const nameOf = (pid: string): Person | undefined => data.people.find((p) => p.id === pid);
 
@@ -212,6 +228,22 @@ export default function ClosingScreen() {
           </Text>
         </View>
 
+        {settled || data.alternatives.length === 0 ? null : (
+          <Row gap={SPACING.sm} style={{ flexWrap: 'wrap' }}>
+            <Text variant="caption" tone="muted">
+              Acertar em
+            </Text>
+            {[data.baseCurrency, ...data.alternatives.map((a) => a.currency)].map((code) => (
+              <Chip
+                key={code}
+                label={code}
+                selected={code === selectedCurrency}
+                onPress={() => { setPayCurrency(code); }}
+              />
+            ))}
+          </Row>
+        )}
+
         {settled ? (
           <Card>
             <Text variant="body" tone="positive">
@@ -224,7 +256,17 @@ export default function ClosingScreen() {
           const from = nameOf(transfer.fromId);
           const to = nameOf(transfer.toId);
           const options = paymentOptions(transfer, data.baseCurrency, data.alternatives);
-          const canPix = data.baseCurrency === 'BRL' && to?.pixKey != null;
+          const chosen = options.find((option) => option.currency === selectedCurrency) ?? options[0];
+          if (chosen === undefined) return null;
+
+          // Pagar numa moeda de granularidade mais grossa arredonda, e o resto
+          // fica visível em vez de sumir dentro do saldo.
+          const backInBase =
+            chosen.currency === data.baseCurrency
+              ? chosen.cents
+              : convertCents(chosen.cents, chosen.currency, data.baseCurrency, chosen.ratePpm);
+          const residueCents = backInBase - transfer.cents;
+          const canPix = chosen.currency === 'BRL' && data.baseCurrency === 'BRL' && to?.pixKey != null;
 
           return (
             <Card key={`${transfer.fromId}-${transfer.toId}`}>
@@ -240,52 +282,59 @@ export default function ClosingScreen() {
                     <Text variant="label">
                       {from?.name ?? '?'} paga a {to?.name ?? '?'}
                     </Text>
-                    <MoneyText variant="title" tone="default" value={{ cents: transfer.cents, currency: data.baseCurrency }} />
+                    <MoneyText
+                      variant="title"
+                      tone="default"
+                      value={{ cents: chosen.cents, currency: chosen.currency }}
+                    />
+                    {chosen.currency === data.baseCurrency ? null : (
+                      <Text variant="caption" tone={residueCents === 0 ? 'faint' : 'warning'} numeric>
+                        ={' '}
+                        {formatMoney({ cents: backInBase, currency: data.baseCurrency }, LOCALE)}
+                        {residueCents === 0
+                          ? ''
+                          : ` · ${formatMoney({ cents: Math.abs(residueCents), currency: data.baseCurrency }, LOCALE)} ${
+                              residueCents > 0 ? 'a mais' : 'a menos'
+                            } que o saldo`}
+                      </Text>
+                    )}
                   </View>
                 </Row>
 
-                <Row gap={SPACING.sm} style={{ flexWrap: 'wrap' }}>
-                  {canPix ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Copiar Pix"
-                      onPress={() => { copyPix(transfer); }}
-                      style={{
-                        flexGrow: 1,
-                        minHeight: 44,
-                        borderRadius: RADIUS.pill,
-                        backgroundColor: t.inverse,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: SPACING.sm,
-                      }}
-                    >
-                      <IconCopy size={15} color={t.onInverse} />
-                      <Text variant="label" tone="inverse">
-                        Pix copia e cola
-                      </Text>
-                    </Pressable>
-                  ) : null}
-
-                  {options.slice(1).map((option) => (
-                    <Chip
-                      key={option.currency}
-                      label={`${formatMoney({ cents: option.cents, currency: option.currency }, LOCALE)} em dinheiro`}
-                      onPress={() => { markPaid(transfer, option.currency, option.cents, option.ratePpm); }}
-                    />
-                  ))}
-                </Row>
+                {canPix ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Copiar Pix"
+                    onPress={() => { copyPix(transfer); }}
+                    style={{
+                      minHeight: 44,
+                      borderRadius: RADIUS.pill,
+                      backgroundColor: t.inverse,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: SPACING.sm,
+                    }}
+                  >
+                    <IconCopy size={15} color={t.onInverse} />
+                    <Text variant="label" tone="inverse">
+                      Pix copia e cola
+                    </Text>
+                  </Pressable>
+                ) : null}
 
                 <Divider />
 
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => { markPaid(transfer, data.baseCurrency, transfer.cents, RATE_SCALE); }}
+                  disabled={chosen.cents === 0}
+                  onPress={() => { markPaid(transfer, chosen.currency, chosen.cents, chosen.ratePpm); }}
                   style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <Text variant="label" tone="accent">
-                    Marcar como pago
+                  <Text variant="label" tone={chosen.cents === 0 ? 'faint' : 'accent'}>
+                    {chosen.cents === 0
+                      ? `Valor pequeno demais para pagar em ${chosen.currency}`
+                      : `Marcar como pago em ${chosen.currency}`}
                   </Text>
                 </Pressable>
               </View>

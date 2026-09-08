@@ -2,15 +2,14 @@ import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { addParticipant, createTrip } from '@/commands';
+import { addParticipant, createTrip, setTripCurrencies } from '@/commands';
 import { localActorId } from '@/db/repositories';
+import { CurrencyPicker } from '@/features/expenses/CurrencyPicker';
 import { useMutate } from '@/state/database';
 import { Avatar, Button, Card, Chip, Divider, Row, Text } from '@/ui/components';
 import { IconPlus, IconTrash } from '@/ui/icons';
 import { useTheme } from '@/ui/theme';
 import { RADIUS, SPACING } from '@/ui/tokens';
-
-const CURRENCIES = ['BRL', 'USD', 'EUR', 'JPY', 'GBP', 'ARS', 'CLP'] as const;
 
 export default function NewTripScreen() {
   const t = useTheme();
@@ -19,6 +18,8 @@ export default function NewTripScreen() {
 
   const [name, setName] = useState('');
   const [baseCurrency, setBaseCurrency] = useState<string>('BRL');
+  const [otherCurrencies, setOtherCurrencies] = useState<string[]>([]);
+  const [picking, setPicking] = useState<'base' | 'other' | undefined>(undefined);
   const [people, setPeople] = useState<string[]>([]);
   const [draft, setDraft] = useState('');
 
@@ -34,6 +35,7 @@ export default function NewTripScreen() {
   const save = (): void => {
     mutate((database, ctx) => {
       const tripId = createTrip(database, ctx, { name: name.trim(), baseCurrency });
+      setTripCurrencies(database, ctx, tripId, otherCurrencies);
       // Quem cria a viagem é "você" — identificado pelo aparelho enquanto não
       // existe login (Fase 6).
       addParticipant(database, ctx, {
@@ -85,18 +87,32 @@ export default function NewTripScreen() {
           <Text variant="overline" tone="faint">
             Moeda do acerto
           </Text>
+          <Row gap={SPACING.sm}>
+            <Chip label={baseCurrency} selected onPress={() => { setPicking('base'); }} />
+            <Text variant="caption" tone="faint" style={{ flex: 1 }}>
+              É a moeda em que as contas fecham no fim.
+            </Text>
+          </Row>
+        </View>
+
+        <View style={{ gap: SPACING.sm }}>
+          <Text variant="overline" tone="faint">
+            Outras moedas da viagem
+          </Text>
           <Row style={{ flexWrap: 'wrap' }} gap={SPACING.sm}>
-            {CURRENCIES.map((currency) => (
+            {otherCurrencies.map((code) => (
               <Chip
-                key={currency}
-                label={currency}
-                selected={currency === baseCurrency}
-                onPress={() => { setBaseCurrency(currency); }}
+                key={code}
+                label={`${code}  ×`}
+                selected
+                onPress={() => { setOtherCurrencies((c) => c.filter((x) => x !== code)); }}
               />
             ))}
+            <Chip label="+ Moeda" onPress={() => { setPicking('other'); }} />
           </Row>
           <Text variant="caption" tone="faint">
-            É a moeda em que as contas fecham no fim. Cada despesa pode ser em outra.
+            Escolha agora as moedas que vocês vão gastar. Elas viram atalho no lançamento — e dá
+            para acrescentar outra depois.
           </Text>
         </View>
 
@@ -166,6 +182,17 @@ export default function NewTripScreen() {
       <View style={{ position: 'absolute', left: SPACING.xl, right: SPACING.xl, bottom: insets.bottom + SPACING.lg }}>
         <Button label="Criar viagem" onPress={save} disabled={!canSave} />
       </View>
+
+      <CurrencyPicker
+        visible={picking !== undefined}
+        selected={picking === 'base' ? baseCurrency : ''}
+        recent={[baseCurrency, ...otherCurrencies]}
+        onSelect={(code) => {
+          if (picking === 'base') setBaseCurrency(code);
+          else if (code !== baseCurrency) setOtherCurrencies((c) => (c.includes(code) ? c : [...c, code]));
+        }}
+        onClose={() => { setPicking(undefined); }}
+      />
     </View>
   );
 }

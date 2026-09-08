@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addParticipant,
+  addTripCurrency,
   archiveTrip,
   createExpense,
   createTrip,
@@ -8,9 +9,17 @@ import {
   linkParticipantToUser,
   recordSettlement,
   restoreExpense,
+  setTripCurrencies,
   updateExpense,
 } from '@/commands/index';
-import { listExpenses, listShares, listSubgroups, listTrips, loadLedger } from '@/db/repositories';
+import {
+  listExpenses,
+  listShares,
+  listSubgroups,
+  listTripCurrencies,
+  listTrips,
+  loadLedger,
+} from '@/db/repositories';
 import { computeBalances, expenseInBase } from '@/domain/balance';
 import { sumCents } from '@/domain/money';
 import { pendingCount, pendingOps } from '@/sync/outbox';
@@ -409,5 +418,27 @@ describe('encerrar viagem', () => {
   it('recusa arquivar viagem que não existe', () => {
     const { db, ctx } = viagemComQuatro();
     expect(archiveTrip(db, ctx, 'nao-existe')).toEqual({ ok: false, error: { code: 'trip_not_found' } });
+  });
+});
+
+describe('moedas da viagem', () => {
+  it('a moeda-base entra sempre, e vem primeiro', () => {
+    const { db, ctx, tripId } = viagemComQuatro();
+    expect(setTripCurrencies(db, ctx, tripId, ['JPY', 'EUR']).ok).toBe(true);
+    expect(listTripCurrencies(db, tripId)).toEqual(['BRL', 'JPY', 'EUR']);
+  });
+
+  it('não duplica a moeda-base se ela vier na lista', () => {
+    const { db, ctx, tripId } = viagemComQuatro();
+    setTripCurrencies(db, ctx, tripId, ['BRL', 'JPY']);
+    expect(listTripCurrencies(db, tripId)).toEqual(['BRL', 'JPY']);
+  });
+
+  it('acrescentar uma moeda preserva as que já estavam', () => {
+    const { db, ctx, tripId } = viagemComQuatro();
+    setTripCurrencies(db, ctx, tripId, ['JPY']);
+    expect(addTripCurrency(db, ctx, tripId, 'EUR').ok).toBe(true);
+    expect(addTripCurrency(db, ctx, tripId, 'EUR').ok).toBe(true);
+    expect(listTripCurrencies(db, tripId)).toEqual(['BRL', 'JPY', 'EUR']);
   });
 });

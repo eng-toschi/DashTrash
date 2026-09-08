@@ -160,6 +160,58 @@ export function archiveTrip(
   return ok(undefined);
 }
 
+/**
+ * Define quais moedas a viagem usa (§ escolhido na abertura).
+ *
+ * A moeda-base entra sempre, mesmo que não venha na lista: o acerto acontece
+ * nela por padrão.
+ */
+export function setTripCurrencies(
+  db: Database,
+  ctx: CommandContext,
+  tripId: string,
+  codes: readonly string[],
+): Result<void, CommandError> {
+  const trip = getTrip(db, tripId);
+  if (trip === undefined) return err({ code: 'trip_not_found' });
+
+  const unique = [trip.base_currency, ...codes.filter((code) => code !== trip.base_currency)];
+
+  db.transaction(() => {
+    db.run('DELETE FROM trip_currencies WHERE trip_id = ?', [tripId]);
+    unique.forEach((code, position) => {
+      db.run('INSERT INTO trip_currencies (trip_id, code, position) VALUES (?, ?, ?)', [
+        tripId,
+        code,
+        position,
+      ]);
+    });
+    record(db, ctx, {
+      tripId,
+      entity: 'trip',
+      entityId: tripId,
+      kind: 'upsert',
+      payload: { id: tripId, currencies: unique },
+    });
+  });
+
+  return ok(undefined);
+}
+
+/** Acrescenta uma moeda à viagem sem mexer nas que já estão lá. */
+export function addTripCurrency(
+  db: Database,
+  ctx: CommandContext,
+  tripId: string,
+  code: string,
+): Result<void, CommandError> {
+  const current = db
+    .all<{ code: string }>('SELECT code FROM trip_currencies WHERE trip_id = ?', [tripId])
+    .map((row) => row.code);
+  if (current.includes(code)) return ok(undefined);
+  return setTripCurrencies(db, ctx, tripId, [...current, code]);
+}
+
 export interface AddParticipantInput {
   readonly tripId: string;
   readonly displayName: string;

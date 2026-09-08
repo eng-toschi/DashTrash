@@ -170,9 +170,33 @@ CREATE UNIQUE INDEX uq_participant_user ON participants(trip_id, user_id)
   WHERE user_id IS NOT NULL AND merged_into IS NULL AND deleted_at IS NULL;
 `;
 
+/**
+ * Terceira migração: as moedas da viagem são escolhidas na abertura.
+ *
+ * O seletor de moeda listava todas as moedas do mundo em toda despesa. Numa
+ * viagem real são duas ou três, e elas são conhecidas antes da primeira
+ * despesa — escolher ali reduz o lançamento a um toque.
+ */
+const TRIP_CURRENCIES = `
+CREATE TABLE trip_currencies (
+  trip_id  TEXT NOT NULL REFERENCES trips(id),
+  code     TEXT NOT NULL,
+  position INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (trip_id, code)
+);
+
+-- Viagens que já existem herdam a moeda-base e tudo o que já foi lançado nelas.
+INSERT OR IGNORE INTO trip_currencies (trip_id, code, position)
+  SELECT id, base_currency, 0 FROM trips;
+
+INSERT OR IGNORE INTO trip_currencies (trip_id, code, position)
+  SELECT DISTINCT trip_id, currency, 1 FROM expenses WHERE deleted_at IS NULL;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, name: 'initial', sql: INITIAL },
   { version: 2, name: 'pix_iof_subgroups', sql: PIX_IOF_SUBGROUPS },
+  { version: 3, name: 'trip_currencies', sql: TRIP_CURRENCIES },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 0;

@@ -8,13 +8,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { createExpense, deleteExpense, updateExpense } from '@/commands';
+import { addTripCurrency, createExpense, deleteExpense, updateExpense } from '@/commands';
 import {
   findMe,
   getTrip,
   listActiveParticipants,
-  listExpenses,
   listRates,
+  listTripCurrencies,
   listSubgroups,
   saveRate,
 } from '@/db/repositories';
@@ -98,9 +98,7 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
     );
   });
 
-  const usedCurrencies = useQuery((database) => [
-    ...new Set(listExpenses(database, tripId).map((row) => row.currency)),
-  ]);
+  const tripCurrencies = useQuery((database) => listTripCurrencies(database, tripId));
 
   const cachedRate = useMemo(() => {
     if (currency === baseCurrency) return undefined;
@@ -262,9 +260,25 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
           )}
         </Row>
 
+        {tripCurrencies.length > 1 ? (
+          <Row gap={SPACING.sm} style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
+            {tripCurrencies.map((code) => (
+              <Chip
+                key={code}
+                label={code}
+                selected={code === currency}
+                onPress={() => { setCurrency(code); }}
+              />
+            ))}
+            <Chip label="Outra" onPress={() => { setPickerOpen(true); }} />
+          </Row>
+        ) : null}
+
         <View style={{ alignItems: 'center', gap: SPACING.sm, paddingVertical: SPACING.md }}>
           <Row gap={SPACING.sm}>
-            <Chip label={currency} onPress={() => { setPickerOpen(true); }} />
+            {tripCurrencies.length > 1 ? null : (
+              <Chip label={currency} onPress={() => { setPickerOpen(true); }} />
+            )}
             <TextInput
               value={amountText}
               onChangeText={setAmountText}
@@ -528,8 +542,13 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
       <CurrencyPicker
         visible={pickerOpen}
         selected={currency}
-        recent={[baseCurrency, ...usedCurrencies]}
-        onSelect={setCurrency}
+        recent={tripCurrencies}
+        onSelect={(code) => {
+          setCurrency(code);
+          // Escolher no seletor completo acrescenta a moeda à viagem, para ela
+          // virar atalho na próxima despesa.
+          mutate((database, ctx) => { addTripCurrency(database, ctx, tripId, code); });
+        }}
         onClose={() => { setPickerOpen(false); }}
       />
     </View>

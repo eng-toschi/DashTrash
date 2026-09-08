@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { openBetterSqlite } from '@/db/drivers/betterSqlite';
 import { currentVersion, migrate } from '@/db/migrate';
 import { LATEST_VERSION } from '@/db/migrations';
-import { computeBalances, loadLedger } from '@/index';
+import { computeBalances, listTripCurrencies, loadLedger } from '@/index';
 import { sumCents } from '@/domain/money';
 import { openTestDbAtVersion } from './_harness';
 
@@ -13,7 +13,7 @@ describe('migrações', () => {
 
     expect(result.from).toBe(0);
     expect(result.to).toBe(LATEST_VERSION);
-    expect(result.applied).toEqual(['1_initial', '2_pix_iof_subgroups']);
+    expect(result.applied).toEqual(['1_initial', '2_pix_iof_subgroups', '3_trip_currencies']);
   });
 
   it('rodar de novo não faz nada', () => {
@@ -61,7 +61,7 @@ describe('migrações', () => {
 
     const resultado = migrate(db);
     expect(resultado.from).toBe(1);
-    expect(resultado.to).toBe(2);
+    expect(resultado.to).toBe(LATEST_VERSION);
 
     const ledger = loadLedger(db, 't1');
     expect(ledger.expenses).toHaveLength(1);
@@ -74,6 +74,29 @@ describe('migrações', () => {
       { participantId: 'p1', cents: 10_000 },
       { participantId: 'p2', cents: -10_000 },
     ]);
+  });
+
+  it('a versão 3 herda as moedas de uma viagem que já existia', () => {
+    // Quem já tinha viagem não pode terminar sem moeda nenhuma no seletor.
+    const db = openTestDbAtVersion(1);
+    db.run(
+      `INSERT INTO trips (id, name, base_currency, cover_color, actor_id, updated_at)
+       VALUES ('t1', 'Japão', 'BRL', '#6D4AFF', 'aparelho-a', '2026-03-01T00:00:00Z')`,
+    );
+    db.run(
+      `INSERT INTO participants (id, trip_id, display_name, avatar_seed, actor_id, updated_at)
+       VALUES ('p1', 't1', 'Ana', 'p1', 'aparelho-a', '2026-03-01T00:00:00Z')`,
+    );
+    db.run(
+      `INSERT INTO expenses (id, trip_id, description, amount_cents, currency, fx_rate_ppm,
+                             spent_on, paid_by, split_type, created_by, actor_id, updated_at)
+       VALUES ('e1', 't1', 'Hotel', 96000, 'JPY', 37000, '2026-03-02', 'p1', 'equal',
+               'aparelho-a', 'aparelho-a', '2026-03-02T00:00:00Z')`,
+    );
+
+    migrate(db);
+
+    expect(listTripCurrencies(db, 't1')).toEqual(['BRL', 'JPY']);
   });
 
   it('a versão 2 traz as colunas de Pix, IOF e a tabela de subgrupos', () => {

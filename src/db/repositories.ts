@@ -199,6 +199,20 @@ export function localActorId(db: Database): string {
   return db.get<{ actor_id: string }>('SELECT actor_id FROM device_state WHERE id = 1')?.actor_id ?? '';
 }
 
+/** Moedas escolhidas para a viagem. A moeda-base vem sempre primeiro. */
+export function listTripCurrencies(db: Database, tripId: string): string[] {
+  const codes = db
+    .all<{ code: string }>(
+      'SELECT code FROM trip_currencies WHERE trip_id = ? ORDER BY position ASC, code ASC',
+      [tripId],
+    )
+    .map((row) => row.code);
+
+  const base = getTrip(db, tripId)?.base_currency;
+  if (base === undefined) return codes;
+  return [base, ...codes.filter((code) => code !== base)];
+}
+
 /** Cotações em cache para um par de moedas, para escolher a do dia do gasto (§8). */
 export function listRates(db: Database, base: string, quote: string): { asOf: string; ratePpm: number }[] {
   return db
