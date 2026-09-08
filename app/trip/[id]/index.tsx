@@ -180,7 +180,11 @@ export default function TripScreen() {
                 {group.items.map((expense) => {
                   const Icon = CATEGORY_ICONS[expense.category] ?? CATEGORY_ICONS.other;
                   return (
-                    <Card key={expense.id} style={{ paddingVertical: SPACING.md }}>
+                    <Card
+                      key={expense.id}
+                      style={{ paddingVertical: SPACING.md }}
+                      onPress={() => { router.push(`/trip/${tripId}/expense/${expense.id}`); }}
+                    >
                       <Row>
                         <View
                           style={{

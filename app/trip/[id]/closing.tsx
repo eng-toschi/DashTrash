@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { recordSettlement } from '@/commands';
 import { getTrip, listExpenses, listParticipants, loadLedger } from '@/db/repositories';
-import { computeBalances, expenseInBase, totalIof, totalSpent } from '@/domain/balance';
+import { computeBalances, totalIof, totalSpent } from '@/domain/balance';
+import { summarizeByCategory } from '@/domain/summary';
 import { RATE_SCALE } from '@/domain/fx';
 import { formatMoney } from '@/domain/money';
 import { buildPixPayload, parsePixKey } from '@/domain/pix';
@@ -50,22 +51,16 @@ export default function ClosingScreen() {
       pixCity: p.pix_city,
     }));
 
-    const byCategory = new Map<string, number>();
-    for (const row of listExpenses(db, tripId)) {
-      const base = expenseInBase(
-        {
-          id: row.id,
-          amountCents: row.amount_cents,
-          currency: row.currency,
-          fxRatePpm: row.fx_rate_ppm,
-          iofPpm: row.iof_ppm,
-          paidBy: row.paid_by,
-          shares: [],
-        },
-        trip.base_currency,
-      );
-      byCategory.set(row.category, (byCategory.get(row.category) ?? 0) + base.totalCents);
-    }
+    const categories = summarizeByCategory(
+      listExpenses(db, tripId).map((row) => ({
+        category: row.category,
+        amountCents: row.amount_cents,
+        currency: row.currency,
+        fxRatePpm: row.fx_rate_ppm,
+        iofPpm: row.iof_ppm,
+      })),
+      trip.base_currency,
+    );
 
     // Moedas realmente usadas na viagem, com a taxa mais recente de cada uma.
     const alternatives = new Map<string, number>();
@@ -81,7 +76,7 @@ export default function ClosingScreen() {
       total: totalSpent(ledger),
       iof: totalIof(ledger),
       perPerson: people.length === 0 ? 0 : Math.round(totalSpent(ledger) / people.length),
-      categories: [...byCategory.entries()].sort((a, b) => b[1] - a[1]),
+      categories,
       balances: report.balances,
       simple: simplifyDebts(report.balances),
       real: computeRealDebts(ledger),
@@ -168,10 +163,10 @@ export default function ClosingScreen() {
             </Row>
 
             <View style={{ gap: SPACING.sm }}>
-              {data.categories.map(([key, cents]) => (
-                <Row key={key} gap={SPACING.sm}>
+              {data.categories.map(({ category, cents }) => (
+                <Row key={category} gap={SPACING.sm}>
                   <Text variant="caption" style={{ width: 86 }}>
-                    {CATEGORY_LABELS[key] ?? key}
+                    {CATEGORY_LABELS[category] ?? category}
                   </Text>
                   <View style={{ flex: 1, height: 9, backgroundColor: t.surfaceAlt, borderRadius: RADIUS.pill }}>
                     <View

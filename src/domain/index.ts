@@ -6,3 +6,4 @@ export * from './balance';
 export * from './payment';
 export * from './pix';
 export * from './settle';
+export * from './summary';

@@ -112,6 +112,32 @@ export function listShares(db: Database, expenseId: string): Share[] {
     .map((row) => ({ participantId: row.participant_id, cents: row.computed_cents }));
 }
 
+export interface ExpenseWithShares {
+  readonly expense: ExpenseRow;
+  readonly shares: { participantId: string; inputCents: number; computedCents: number }[];
+}
+
+/** Uma despesa e suas partes, para abrir a tela de edição. */
+export function getExpense(db: Database, expenseId: string): ExpenseWithShares | undefined {
+  const expense = db.get<ExpenseRow>('SELECT * FROM expenses WHERE id = ? AND deleted_at IS NULL', [
+    expenseId,
+  ]);
+  if (expense === undefined) return undefined;
+
+  const shares = db
+    .all<ShareRow>(
+      'SELECT * FROM expense_shares WHERE expense_id = ? ORDER BY position ASC, participant_id ASC',
+      [expenseId],
+    )
+    .map((row) => ({
+      participantId: row.participant_id,
+      inputCents: row.input_cents,
+      computedCents: row.computed_cents,
+    }));
+
+  return { expense, shares };
+}
+
 export function listSettlements(db: Database, tripId: string): SettlementRow[] {
   return db.all<SettlementRow>(
     'SELECT * FROM settlements WHERE trip_id = ? AND deleted_at IS NULL ORDER BY settled_on ASC, id ASC',

@@ -32,6 +32,10 @@ export default function RootLayout() {
               name="trip/[id]/expense/new"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
+            <Stack.Screen
+              name="trip/[id]/expense/[expenseId]"
+              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            />
           </Stack>
         </ThemeProvider>
       </DatabaseProvider>
