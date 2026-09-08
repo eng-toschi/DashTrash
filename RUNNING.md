@@ -15,12 +15,35 @@ desenvolvedor nem build nativo. Serve para iPhone e Android.
 
 Precisa de **Node 20 ou mais novo** (`node -v` para conferir).
 
+Primeira vez:
+
 ```bash
 git clone -b claude/travel-expense-splitting-app-33pgc6 https://github.com/eng-toschi/DashTrash.git
 cd DashTrash
 npm install
 npx expo start
 ```
+
+**Pegando uma versão nova** (é este o caso quando eu digo "já subi"):
+
+```bash
+cd ~/DashTrash
+git pull origin claude/travel-expense-splitting-app-33pgc6
+npm install
+npx expo start -c
+```
+
+As três linhas importam, e cada uma já foi o motivo de um teste falso aqui:
+
+- `npm install` — quando a versão nova traz uma biblioteca (as fontes do b15, por
+  exemplo), pular isso derruba o app com "Unable to resolve …".
+- `-c` limpa o cache do bundler. Sem ele o Metro serve o pacote antigo e a
+  correção parece não ter funcionado.
+- Confira a **marca de versão no alto da home** (`b15`, `b16`…) antes de julgar a
+  tela. Ela existe justamente porque isso já aconteceu duas vezes.
+
+Se o `git pull` reclamar de alteração local em `tsconfig.json`, é o próprio Expo
+que reescreve o arquivo ao iniciar: `git checkout -- tsconfig.json` e repita.
 
 Vai aparecer um **QR code** no terminal.
 
@@ -55,7 +78,8 @@ Tudo funciona **sem internet** — pode ligar o modo avião e continuar usando.
 5. **Saldos** — a aba ao lado de Despesas. A soma tem que dar exatamente zero.
 6. **Fechamento** — quem paga a quem, nos dois modos. Cadastre uma chave Pix em
    Participantes e o botão "Pix copia e cola" aparece, com o valor embutido.
-7. **Tema escuro** — mude no sistema operacional; o app acompanha.
+7. **Tema escuro** — o botão redondo no canto superior direito da home cicla
+   entre automático (segue o aparelho), claro e escuro.
 
 ### O que ainda NÃO existe
 
