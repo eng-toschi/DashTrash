@@ -183,17 +183,19 @@ export default function ClosingScreen() {
               ))}
             </View>
 
-            <Text variant="caption" tone="faint">
-              Convertido pela cotação de cada dia
-              {data.iof > 0
-                ? ` · inclui ${formatMoney({ cents: data.iof, currency: data.baseCurrency }, LOCALE)} de IOF`
-                : ''}
-              .
-            </Text>
+            {data.alternatives.length > 0 || data.iof > 0 ? (
+              <Text variant="caption" tone="faint">
+                {data.alternatives.length > 0 ? 'Convertido pela cotação de cada dia' : 'Tudo na moeda da viagem'}
+                {data.iof > 0
+                  ? ` · inclui ${formatMoney({ cents: data.iof, currency: data.baseCurrency }, LOCALE)} de IOF`
+                  : ''}
+                .
+              </Text>
+            ) : null}
           </View>
         </Card>
 
-        <Row style={{ justifyContent: 'space-between' }}>
+        <View style={{ gap: SPACING.sm, marginTop: SPACING.xs }}>
           <Text variant="title">Quem paga a quem</Text>
           <SegmentedControl
             value={mode}
@@ -203,7 +205,12 @@ export default function ClosingScreen() {
               { value: 'real', label: 'Dívidas reais' },
             ]}
           />
-        </Row>
+          <Text variant="caption" tone="muted" style={{ lineHeight: 17 }}>
+            {mode === 'simple'
+              ? 'Cruza todos os saldos para juntar pagamentos. Você pode acabar recebendo de alguém com quem não dividiu nada.'
+              : 'Só quita entre quem dividiu de verdade. Costuma dar mais pagamentos, mas cada um paga a quem realmente deve.'}
+          </Text>
+        </View>
 
         {settled ? (
           <Card>
