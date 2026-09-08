@@ -6,7 +6,7 @@ import { computeBalances, expenseInBase, totalSpent } from '@/domain/balance';
 import { formatMoney } from '@/domain/money';
 import { findMe, getTrip, listExpenses, listParticipants, listShares, loadLedger } from '@/db/repositories';
 import { useQuery } from '@/state/database';
-import { dayLabel } from '@/state/format';
+import { dayLabel, timeLabel } from '@/state/format';
 import { Avatar, Badge, Button, Card, EmptyState, MoneyText, Row, SegmentedControl, Text } from '@/ui/components';
 import { CATEGORY_ICONS, IconBack, IconPlus, IconUsers } from '@/ui/icons';
 import { useTheme, useThemeControl } from '@/ui/theme';
@@ -17,6 +17,8 @@ interface ExpenseCard {
   readonly description: string;
   readonly category: string;
   readonly spentOn: string;
+  readonly timeLabel: string | undefined;
+  readonly placeLabel: string | undefined;
   readonly payerName: string;
   readonly amountLabel: string;
   readonly peopleCount: number;
@@ -74,6 +76,8 @@ export default function TripScreen() {
         description: row.description,
         category: row.category,
         spentOn: row.spent_on,
+        timeLabel: timeLabel(row.spent_at),
+        placeLabel: row.place_label ?? undefined,
         payerName: nameById.get(row.paid_by) ?? '—',
         amountLabel: formatMoney({ cents: row.amount_cents, currency: row.currency }, 'pt-BR'),
         peopleCount: shares.length,
@@ -212,8 +216,14 @@ export default function TripScreen() {
                               />
                             ) : null}
                           </Row>
-                          <Text variant="caption" tone="muted">
-                            {expense.payerName} pagou {expense.amountLabel}
+                          <Text variant="caption" tone="muted" numberOfLines={1}>
+                            {[
+                              `${expense.payerName} pagou ${expense.amountLabel}`,
+                              expense.timeLabel,
+                              expense.placeLabel,
+                            ]
+                              .filter((part) => part !== undefined && part !== '')
+                              .join(' · ')}
                           </Text>
                         </View>
                         <View style={{ alignItems: 'flex-end', gap: 2 }}>

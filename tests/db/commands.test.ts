@@ -15,6 +15,7 @@ import {
   updateExpense,
 } from '@/commands/index';
 import {
+  lastExpenseCurrency,
   listExpenses,
   listShares,
   listSubgroups,
@@ -472,5 +473,157 @@ describe('descartar viagem', () => {
     const ultima = pendingOps(db).at(-1);
     expect(ultima?.entity).toBe('trip');
     expect(ultima?.kind).toBe('delete');
+  });
+});
+
+describe('hora e lugar da despesa', () => {
+  it('grava e devolve o instante com fuso, o endereço e as coordenadas', () => {
+    const { db, ctx, tripId, ids } = viagemComQuatro();
+    const [ana, bruno] = ids as [string, string];
+
+    createExpense(db, ctx, {
+      tripId,
+      description: 'Jantar em Shibuya',
+      amountCents: 12_400,
+      currency: 'JPY',
+      fxRatePpm: 37_000,
+      spentOn: '2026-03-14',
+      spentAt: '2026-03-14T21:04:00+09:00',
+      placeLabel: 'Ichiran · Shibuya · Tóquio',
+      placeLat: 35.6595,
+      placeLon: 139.7005,
+      paidBy: ana,
+      split: { type: 'equal', participantIds: [ana, bruno] },
+    });
+
+    const [row] = listExpenses(db, tripId);
+    // O fuso tem de voltar exatamente como entrou: gravado em UTC, o jantar
+    // das 21h em Tóquio viraria 12h e mudaria de dia na lista.
+    expect(row?.spent_at).toBe('2026-03-14T21:04:00+09:00');
+    expect(row?.place_label).toBe('Ichiran · Shibuya · Tóquio');
+    expect(row?.place_lat).toBeCloseTo(35.6595, 4);
+    expect(row?.place_lon).toBeCloseTo(139.7005, 4);
+  });
+
+  it('aceita despesa sem hora e sem lugar — como as lançadas antes do campo existir', () => {
+    const { db, ctx, tripId, ids } = viagemComQuatro();
+    const [ana, bruno] = ids as [string, string];
+
+    createExpense(db, ctx, {
+      tripId,
+      description: 'Táxi',
+      amountCents: 4_200,
+      currency: 'JPY',
+      fxRatePpm: 37_000,
+      spentOn: '2026-03-14',
+      paidBy: ana,
+      split: { type: 'equal', participantIds: [ana, bruno] },
+    });
+
+    const [row] = listExpenses(db, tripId);
+    expect(row?.spent_at).toBeNull();
+    expect(row?.place_label).toBeNull();
+    expect(row?.place_lat).toBeNull();
+  });
+
+  it('a edição substitui hora e lugar, inclusive apagando', () => {
+    const { db, ctx, tripId, ids } = viagemComQuatro();
+    const [ana, bruno] = ids as [string, string];
+
+    const criada = createExpense(db, ctx, {
+      tripId,
+      description: 'Jantar',
+      amountCents: 12_400,
+      currency: 'JPY',
+      fxRatePpm: 37_000,
+      spentOn: '2026-03-14',
+      spentAt: '2026-03-14T21:04:00+09:00',
+      placeLabel: 'Ichiran',
+      paidBy: ana,
+      split: { type: 'equal', participantIds: [ana, bruno] },
+    });
+    if (!criada.ok) throw new Error('despesa não criada');
+
+    updateExpense(db, ctx, criada.value, {
+      tripId,
+      description: 'Jantar',
+      amountCents: 12_400,
+      currency: 'JPY',
+      fxRatePpm: 37_000,
+      spentOn: '2026-03-14',
+      spentAt: '2026-03-14T19:30:00+09:00',
+      paidBy: ana,
+      split: { type: 'equal', participantIds: [ana, bruno] },
+    });
+
+    const [row] = listExpenses(db, tripId);
+    expect(row?.spent_at).toBe('2026-03-14T19:30:00+09:00');
+    // Lugar retirado na edição some de verdade, em vez de ficar preso ao antigo.
+    expect(row?.place_label).toBeNull();
+  });
+});
+
+describe('lastExpenseCurrency', () => {
+  it('é indefinida numa viagem sem despesa', () => {
+    const { db, tripId } = viagemComQuatro();
+    expect(lastExpenseCurrency(db, tripId)).toBeUndefined();
+  });
+
+  it('devolve a moeda da despesa mais recente, não a da última inserida', () => {
+    const { db, ctx, tripId, ids } = viagemComQuatro();
+    const [ana, bruno] = ids as [string, string];
+    const base = {
+      tripId,
+      description: 'x',
+      amountCents: 1_000,
+      fxRatePpm: 1_000_000,
+      paidBy: ana,
+      split: { type: 'equal' as const, participantIds: [ana, bruno] },
+    };
+
+    createExpense(db, ctx, { ...base, currency: 'JPY', spentOn: '2026-03-14' });
+    // Lançada depois, mas de um dia ANTERIOR: quem manda é a data da despesa.
+    createExpense(db, ctx, { ...base, currency: 'EUR', spentOn: '2026-03-10' });
+
+    expect(lastExpenseCurrency(db, tripId)).toBe('JPY');
+  });
+
+  it('desempata pelo horário quando as despesas são do mesmo dia', () => {
+    const { db, ctx, tripId, ids } = viagemComQuatro();
+    const [ana, bruno] = ids as [string, string];
+    const base = {
+      tripId,
+      description: 'x',
+      amountCents: 1_000,
+      fxRatePpm: 1_000_000,
+      spentOn: '2026-03-14',
+      paidBy: ana,
+      split: { type: 'equal' as const, participantIds: [ana, bruno] },
+    };
+
+    createExpense(db, ctx, { ...base, currency: 'EUR', spentAt: '2026-03-14T22:00:00+09:00' });
+    createExpense(db, ctx, { ...base, currency: 'JPY', spentAt: '2026-03-14T09:00:00+09:00' });
+
+    expect(lastExpenseCurrency(db, tripId)).toBe('EUR');
+  });
+
+  it('ignora despesa apagada', () => {
+    const { db, ctx, tripId, ids } = viagemComQuatro();
+    const [ana, bruno] = ids as [string, string];
+    const base = {
+      tripId,
+      description: 'x',
+      amountCents: 1_000,
+      fxRatePpm: 1_000_000,
+      paidBy: ana,
+      split: { type: 'equal' as const, participantIds: [ana, bruno] },
+    };
+
+    createExpense(db, ctx, { ...base, currency: 'EUR', spentOn: '2026-03-10' });
+    const recente = createExpense(db, ctx, { ...base, currency: 'JPY', spentOn: '2026-03-14' });
+    if (!recente.ok) throw new Error('despesa não criada');
+    deleteExpense(db, ctx, recente.value);
+
+    expect(lastExpenseCurrency(db, tripId)).toBe('EUR');
   });
 });

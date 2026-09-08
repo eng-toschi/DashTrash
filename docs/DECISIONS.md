@@ -299,3 +299,54 @@ Os selos dos desenhos ("Em curso", "2 de 4", "IOF 3,5%") têm 11 px e 5 px de re
 `Chip`. Usar `Chip` neles, que respeita os 38 px de alvo de toque, enchia a tela de botões falsos:
 tudo parecia clicável, nada dizia o que era estado e o que era ação. Daí dois componentes, com a
 regra na assinatura — `Badge` não recebe `onPress`.
+
+## 2026-09-08 — A hora é gravada COM o fuso, não em UTC
+
+`spent_at` guarda `2026-03-14T21:04:00+09:00`, não o instante absoluto.
+
+Gravar em UTC seria o reflexo automático, e estaria errado para este app. O
+jantar foi às 21h em Tóquio; convertido para UTC e re-exibido no fuso do
+aparelho, ele vira 12h quando a pessoa confere a conta de volta no Brasil — e
+pior, a despesa pula para outro dia e muda de posição na lista. O que importa
+numa conta de viagem é a hora que as pessoas viram no relógio da parede.
+
+Consequência prática: `timeLabel` lê a hora DO TEXTO, com expressão regular, e
+nunca constrói um `Date` para formatar. Passar por `Date` reinterpretaria o
+instante no fuso do aparelho, que é exatamente o que este formato existe para
+evitar. `spent_on` continua sendo a data local — é por ela que a lista agrupa e
+a cotação é buscada — e tem de espelhar os dez primeiros caracteres de
+`spent_at`; a tela deriva um do outro em vez de manter os dois na mão.
+
+As quatro colunas novas são nulas. Despesa lançada antes desta versão não tem
+hora nem lugar, e preencher meio-dia seria afirmar algo que ninguém registrou.
+
+## 2026-09-08 — Coordenada e endereço são capturados separadamente
+
+O GPS funciona offline; traduzir coordenada em nome de rua, não — quem faz isso
+é o serviço de mapas do sistema, e ele precisa de rede. Num restaurante em outro
+país é exatamente o que falta.
+
+Por isso `capturePlace` grava a coordenada mesmo quando o endereço não vem, e a
+tela diz isso ("Ponto guardado (35.6595, 139.7005) — sem rede para achar o
+endereço"). Um ponto no mapa continua respondendo "onde foi esse jantar?" meses
+depois; um campo vazio, não.
+
+A permissão é pedida no toque do "Usar GPS", nunca na abertura do app: quem está
+lançando uma despesa entende por que o aparelho perguntou. E o campo é um texto
+comum — dá para escrever o lugar sem dar permissão nenhuma.
+
+`formatAddress` mora em `state/format`, não junto do `capturePlace`, porque
+aquele módulo importa `expo-location`: arrastar o runtime do Expo para dentro do
+Node só para testar uma junção de strings faz a suíte inteira parar de rodar.
+Aconteceu ao escrever este teste.
+
+## 2026-09-08 — A despesa nova abre na moeda da última
+
+Voltar para a moeda-base a cada lançamento estava errado na única situação que
+importa: numa viagem ao Japão, TODAS as despesas são em iene, e o app pedia para
+trocar de moeda toda vez. `lastExpenseCurrency` acerta quase sempre; quando erra,
+custa um toque — o mesmo toque que custava sempre.
+
+Ordena por `spent_on`, depois `spent_at`: duas despesas do mesmo dia precisam de
+desempate, e a hora é o desempate certo. Não é a última INSERIDA — lançar hoje
+uma despesa de ontem não pode mudar o padrão para amanhã.

@@ -18,8 +18,20 @@ export interface DossierMeta {
   readonly generatedOn: string;
   /** Nome de cada participante, por id. */
   readonly names: Readonly<Record<string, string>>;
-  /** Descrição, categoria e data de cada despesa, por id. */
-  readonly expenses: Readonly<Record<string, { description: string; category: string; spentOn: string }>>;
+  /** Descrição, categoria, quando e onde de cada despesa, por id. */
+  readonly expenses: Readonly<
+    Record<
+      string,
+      {
+        description: string;
+        category: string;
+        spentOn: string;
+        /** "21:04", quando a despesa foi lançada com hora. */
+        timeLabel?: string | undefined;
+        placeLabel?: string | undefined;
+      }
+    >
+  >;
   /** Data de cada acerto já registrado, por id. */
   readonly settlements: Readonly<Record<string, string>>;
 }
@@ -38,6 +50,8 @@ export interface DossierPerson {
 
 export interface DossierExpense {
   readonly spentOn: string;
+  readonly timeLabel: string | undefined;
+  readonly placeLabel: string | undefined;
   readonly description: string;
   readonly category: string;
   readonly payerName: string;
@@ -114,6 +128,8 @@ export function buildDossier(ledger: TripLedger, meta: DossierMeta): TripDossier
     const info = meta.expenses[expense.id];
     return {
       spentOn: info?.spentOn ?? '',
+      timeLabel: info?.timeLabel,
+      placeLabel: info?.placeLabel,
       description: info?.description ?? '—',
       category: info?.category ?? 'other',
       payerName: nameOf(meta, expense.paidBy),

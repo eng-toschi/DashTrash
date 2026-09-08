@@ -26,6 +26,10 @@ export default function EditExpenseScreen() {
       iofPpm: found.expense.iof_ppm,
       paymentMethod: found.expense.payment_method,
       spentOn: found.expense.spent_on,
+      spentAt: found.expense.spent_at ?? undefined,
+      placeLabel: found.expense.place_label ?? undefined,
+      placeLat: found.expense.place_lat ?? undefined,
+      placeLon: found.expense.place_lon ?? undefined,
       paidBy: found.expense.paid_by,
       splitType: found.expense.split_type,
       shares: found.shares.map((s) => ({

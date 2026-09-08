@@ -529,6 +529,11 @@ export interface ExpenseInput {
   readonly paymentMethod?: string;
   readonly iofPpm?: number;
   readonly spentOn: string;
+  /** Instante local com fuso (§8.2). Ausente = despesa sem hora registrada. */
+  readonly spentAt?: string;
+  readonly placeLabel?: string;
+  readonly placeLat?: number;
+  readonly placeLon?: number;
   readonly paidBy: string;
   readonly split: Split;
   readonly note?: string;
@@ -593,9 +598,10 @@ export function createExpense(
   db.transaction(() => {
     db.run(
       `INSERT INTO expenses (id, trip_id, description, category, amount_cents, currency, fx_rate_ppm,
-                             fx_manual, fx_as_of, payment_method, iof_ppm, spent_on, paid_by, split_type,
+                             fx_manual, fx_as_of, payment_method, iof_ppm, spent_on, spent_at,
+                             place_label, place_lat, place_lon, paid_by, split_type,
                              note, created_by, actor_id, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                (SELECT actor_id FROM device_state WHERE id = 1),
                (SELECT actor_id FROM device_state WHERE id = 1), ?)`,
       [
@@ -611,6 +617,10 @@ export function createExpense(
         input.paymentMethod ?? 'no_fx',
         input.iofPpm ?? 0,
         input.spentOn,
+        input.spentAt ?? null,
+        input.placeLabel ?? null,
+        input.placeLat ?? null,
+        input.placeLon ?? null,
         input.paidBy,
         input.split.type,
         input.note ?? null,
@@ -656,7 +666,8 @@ export function updateExpense(
     db.run(
       `UPDATE expenses
        SET description = ?, category = ?, amount_cents = ?, currency = ?, fx_rate_ppm = ?,
-           fx_manual = ?, fx_as_of = ?, payment_method = ?, iof_ppm = ?, spent_on = ?, paid_by = ?,
+           fx_manual = ?, fx_as_of = ?, payment_method = ?, iof_ppm = ?, spent_on = ?, spent_at = ?,
+           place_label = ?, place_lat = ?, place_lon = ?, paid_by = ?,
            split_type = ?, note = ?, lamport = lamport + 1, updated_at = ?
        WHERE id = ?`,
       [
@@ -670,6 +681,10 @@ export function updateExpense(
         input.paymentMethod ?? 'no_fx',
         input.iofPpm ?? 0,
         input.spentOn,
+        input.spentAt ?? null,
+        input.placeLabel ?? null,
+        input.placeLat ?? null,
+        input.placeLon ?? null,
         input.paidBy,
         input.split.type,
         input.note ?? null,

@@ -80,6 +80,12 @@ Tudo funciona **sem internet** — pode ligar o modo avião e continuar usando.
    Participantes e o botão "Pix copia e cola" aparece, com o valor embutido.
 7. **Tema escuro** — o botão redondo no canto superior direito da home cicla
    entre automático (segue o aparelho), claro e escuro.
+8. **Quando e onde** — na despesa, a linha "Quando" abre os seletores de data e
+   hora, e a de baixo aceita o endereço. O "Usar GPS" pede permissão na hora do
+   toque. Vale testar **em modo avião**: a coordenada é guardada mesmo assim, e
+   a tela diz que faltou rede para achar o endereço.
+9. **Moeda repetida** — lance uma despesa em outra moeda e abra a próxima: ela
+   já vem naquela moeda, não na do acerto.
 
 ### O que ainda NÃO existe
 

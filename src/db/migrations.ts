@@ -201,11 +201,36 @@ CREATE TABLE app_settings (
 );
 `;
 
+/**
+ * Quinta: hora e lugar da despesa.
+ *
+ * `spent_at` guarda o instante COM O FUSO EM QUE ELE ACONTECEU
+ * (`2026-03-14T21:04:00+09:00`), não em UTC. O jantar foi às 21h em Tóquio; se
+ * gravássemos só o instante absoluto, ele viraria 09h quando a pessoa
+ * conferisse a conta de volta no Brasil — e a lista do dia mudaria de ordem.
+ * `spent_on` continua sendo a data local, que é por onde a lista agrupa e a
+ * cotação é buscada.
+ *
+ * As quatro colunas são nulas de propósito: despesa lançada antes desta versão
+ * não tem hora nem lugar, e inventar meio-dia seria dizer que sabe.
+ */
+const EXPENSE_TIME_PLACE = `
+ALTER TABLE expenses ADD COLUMN spent_at TEXT;
+ALTER TABLE expenses ADD COLUMN place_label TEXT;
+ALTER TABLE expenses ADD COLUMN place_lat REAL;
+ALTER TABLE expenses ADD COLUMN place_lon REAL;
+
+DROP INDEX IF EXISTS idx_expenses_trip_date;
+CREATE INDEX idx_expenses_trip_date
+  ON expenses(trip_id, spent_on DESC, spent_at DESC) WHERE deleted_at IS NULL;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, name: 'initial', sql: INITIAL },
   { version: 2, name: 'pix_iof_subgroups', sql: PIX_IOF_SUBGROUPS },
   { version: 3, name: 'trip_currencies', sql: TRIP_CURRENCIES },
   { version: 4, name: 'app_settings', sql: APP_SETTINGS },
+  { version: 5, name: 'expense_time_place', sql: EXPENSE_TIME_PLACE },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 0;

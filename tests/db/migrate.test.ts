@@ -18,6 +18,7 @@ describe('migrações', () => {
       '2_pix_iof_subgroups',
       '3_trip_currencies',
       '4_app_settings',
+      '5_expense_time_place',
     ]);
   });
 

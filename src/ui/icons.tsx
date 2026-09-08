@@ -91,6 +91,19 @@ export const IconClock = ({ size, color }: IconProps) => (
   </Svg>
 );
 
+export const IconPin = ({ size, color }: IconProps) => (
+  <Svg {...base(size)}>
+    <Path
+      d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Circle cx="12" cy="10" r="2.6" stroke={color} strokeWidth={2} />
+  </Svg>
+);
+
 export const IconSun = ({ size, color }: IconProps) => (
   <Svg {...base(size)}>
     <Circle cx="12" cy="12" r="4.2" stroke={color} strokeWidth={STROKE} />

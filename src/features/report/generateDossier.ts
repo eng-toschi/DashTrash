@@ -6,6 +6,7 @@ import type { Database } from '@/db/driver';
 import { getTrip, listExpenses, listParticipants, listSettlements, loadLedger } from '@/db/repositories';
 import { buildDossier, type TripDossier } from '@/domain/dossier';
 import { stripDiacritics } from '@/domain/pix';
+import { timeLabel } from '@/state/format';
 import { renderDossierHtml } from './dossierHtml';
 
 export function buildTripDossier(db: Database, tripId: string, generatedOn: string): TripDossier {
@@ -21,7 +22,13 @@ export function buildTripDossier(db: Database, tripId: string, generatedOn: stri
     expenses: Object.fromEntries(
       listExpenses(db, tripId).map((row) => [
         row.id,
-        { description: row.description, category: row.category, spentOn: row.spent_on },
+        {
+          description: row.description,
+          category: row.category,
+          spentOn: row.spent_on,
+          timeLabel: timeLabel(row.spent_at),
+          placeLabel: row.place_label ?? undefined,
+        },
       ]),
     ),
     settlements: Object.fromEntries(

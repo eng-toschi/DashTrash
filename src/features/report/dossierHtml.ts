@@ -66,6 +66,7 @@ const STYLE = `
   td { padding: 5pt 0; border-bottom: 0.5pt solid #EDE7DD; vertical-align: top; }
   td.num, th.num { text-align: right; white-space: nowrap; }
   .muted { color: #7A7168; font-size: 9.5pt; }
+  .time { color: #A79C90; font-size: 9pt; font-variant-numeric: tabular-nums; }
   .pos { color: #1F8A5B; }
   .neg { color: #D2453B; }
   .badge { display: inline-block; padding: 2pt 7pt; border-radius: 20pt; font-size: 9pt; font-weight: 700; }
@@ -150,10 +151,13 @@ export function renderDossierHtml(dossier: TripDossier): string {
   const expenses = dossier.expenses
     .map(
       (expense) => `<tr>
-        <td class="muted">${day(expense.spentOn)}</td>
+        <td class="muted">${day(expense.spentOn)}${
+          expense.timeLabel === undefined ? '' : `<br><span class="time">${escapeHtml(expense.timeLabel)}</span>`
+        }</td>
         <td>
           ${escapeHtml(expense.description)}
           <div class="muted">${escapeHtml(expense.participantNames.join(', '))}</div>
+          ${expense.placeLabel === undefined ? '' : `<div class="muted">${escapeHtml(expense.placeLabel)}</div>`}
         </td>
         <td>${escapeHtml(expense.payerName)}</td>
         <td class="num muted">${

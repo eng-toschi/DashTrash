@@ -8,6 +8,8 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,6 +23,7 @@ import { addTripCurrency, createExpense, deleteExpense, updateExpense } from '@/
 import {
   findMe,
   getTrip,
+  lastExpenseCurrency,
   listActiveParticipants,
   listRates,
   listTripCurrencies,
@@ -33,12 +36,22 @@ import { IOF_DEFAULT_PPM, paidAmount } from '@/domain/payment';
 import { computeShares, type Split } from '@/domain/split';
 import { useDatabase, useMutate, useQuery } from '@/state/database';
 import { fetchRate } from '@/services/fxRates';
-import { CATEGORY_LABELS, CATEGORY_ORDER, todayIso } from '@/state/format';
+import {
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  combineDateAndTime,
+  dateOfLocalIso,
+  dayLabel,
+  localIso,
+  timeLabel,
+} from '@/state/format';
+import { capturePlace } from '@/services/place';
+import DateTimePicker, { type DateTimePickerChangeEvent } from '@react-native-community/datetimepicker';
 import { CurrencyPicker } from './CurrencyPicker';
 import { ActionSheet, type SheetAction } from '@/ui/ActionSheet';
 import { Avatar, Button, Card, CategoryChip, Chip, Divider, Row, SegmentedControl, Text } from '@/ui/components';
-import { IconCheck, IconChevron, IconTrash } from '@/ui/icons';
-import { useTheme } from '@/ui/theme';
+import { IconCheck, IconChevron, IconClock, IconPin, IconTrash } from '@/ui/icons';
+import { useTheme, useThemeControl } from '@/ui/theme';
 import { FONT, MIN_TOUCH, RADIUS, SPACING } from '@/ui/tokens';
 
 const LOCALE = 'pt-BR';
@@ -54,6 +67,10 @@ export interface ExpenseFormInitial {
   readonly iofPpm: number;
   readonly paymentMethod: string;
   readonly spentOn: string;
+  readonly spentAt: string | undefined;
+  readonly placeLabel: string | undefined;
+  readonly placeLat: number | undefined;
+  readonly placeLon: number | undefined;
   readonly paidBy: string;
   readonly splitType: 'equal' | 'exact';
   readonly shares: readonly { participantId: string; inputCents: number }[];
@@ -65,6 +82,7 @@ function moneyToText(cents: number, currency: string): string {
 
 export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: ExpenseFormInitial }) {
   const t = useTheme();
+  const { isDark } = useThemeControl();
   const insets = useSafeAreaInsets();
   const mutate = useMutate();
   const { db } = useDatabase();
@@ -75,8 +93,21 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
   const me = useQuery((database) => findMe(database, tripId));
   const baseCurrency = trip?.base_currency ?? 'BRL';
 
-  const spentOn = initial?.spentOn ?? todayIso();
   const editing = initial !== undefined;
+
+  // Instante da despesa. Nova nasce em AGORA — não em meia-noite: é a hora que
+  // a pessoa está vendo no relógio quando lança.
+  const [spentAt, setSpentAt] = useState<string>(initial?.spentAt ?? localIso());
+  const [picking, setPicking] = useState<'date' | 'time' | undefined>(undefined);
+  const spentOn = dateOfLocalIso(spentAt);
+
+  const [placeLabel, setPlaceLabel] = useState(initial?.placeLabel ?? '');
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | undefined>(
+    initial?.placeLat === undefined || initial.placeLon === undefined
+      ? undefined
+      : { latitude: initial.placeLat, longitude: initial.placeLon },
+  );
+  const [placeStatus, setPlaceStatus] = useState<'idle' | 'loading' | 'denied' | 'no_address'>('idle');
 
   const [amountText, setAmountText] = useState(
     initial === undefined ? '' : moneyToText(initial.amountCents, initial.currency),
@@ -85,7 +116,12 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
   // 'other' era o DÉCIMO chip: a tela abria sem nenhuma categoria visível
   // marcada, e parecia quebrada. Restaurante é de longe a despesa mais lançada.
   const [category, setCategory] = useState<string>(initial?.category ?? 'restaurant');
-  const [currency, setCurrency] = useState<string>(initial?.currency ?? baseCurrency);
+  // Lançamento novo abre na moeda do ÚLTIMO lançamento da viagem: no Japão,
+  // todas as despesas são em iene, e voltar para a moeda-base a cada uma
+  // obrigava a trocar de novo toda vez.
+  const [currency, setCurrency] = useState<string>(
+    initial?.currency ?? lastExpenseCurrency(db, tripId) ?? baseCurrency,
+  );
   const [rateText, setRateText] = useState(initial === undefined ? '' : formatRate(initial.fxRatePpm));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [payerSheetOpen, setPayerSheetOpen] = useState(false);
@@ -206,7 +242,54 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
   const canSave =
     amountCents > 0 && ratePpm > 0 && paidBy !== '' && selected.length > 0 && shares?.ok === true;
 
+// O picker trabalha com `Date`. Reconstruído a partir dos componentes locais
+  // do texto, nunca por `new Date(spentAt)`, que reinterpretaria o fuso.
+  const spentAtDate = useMemo(() => {
+    const [date = '', clock = '00:00'] = spentAt.split('T');
+    const [year = 0, month = 1, day = 1] = date.split('-').map(Number);
+    const [hour = 0, minute = 0] = clock.split(':').map(Number);
+    return new Date(year, month - 1, day, hour, minute);
+  }, [spentAt]);
+
+  /**
+   * O picker devolve um `Date` inteiro nos dois modos: no de data interessa o
+   * dia dele, no de hora interessa a hora — daí a recombinação, que preserva a
+   * metade que o usuário não estava editando.
+   *
+   * No Android ele é um diálogo do sistema e some ao confirmar; no iOS é um
+   * controle embutido que fica aberto até a pessoa fechar. Daí só o Android
+   * fechar aqui.
+   */
+  const onPickDateTime = (_event: DateTimePickerChangeEvent, picked: Date): void => {
+    if (Platform.OS === 'android') setPicking(undefined);
+    setSpentAt((current) =>
+      picking === 'date'
+        ? combineDateAndTime(dateOfLocalIso(localIso(picked)), spentAtDate)
+        : combineDateAndTime(dateOfLocalIso(current), picked),
+    );
+  };
+
+  const useMyLocation = (): void => {
+    setPlaceStatus('loading');
+    void capturePlace().then((result) => {
+      if (!result.ok) {
+        setPlaceStatus(result.error.code === 'denied' ? 'denied' : 'no_address');
+        return;
+      }
+      setCoords({ latitude: result.value.latitude, longitude: result.value.longitude });
+      if (result.value.label === undefined) {
+        // Sem rede o endereço não vem, mas o ponto foi guardado — e é isso que
+        // a tela precisa dizer, em vez de fingir que nada aconteceu.
+        setPlaceStatus('no_address');
+      } else {
+        setPlaceLabel(result.value.label);
+        setPlaceStatus('idle');
+      }
+    });
+  };
+
   const payer = people.find((p) => p.id === paidBy);
+
 
   const payerActions: SheetAction[] = people.map((person) => ({
     key: person.id,
@@ -241,6 +324,9 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
       paymentMethod: iofPpm > 0 ? 'credit_card' : 'no_fx',
       iofPpm,
       spentOn,
+      spentAt,
+      ...(placeLabel.trim() === '' ? {} : { placeLabel: placeLabel.trim() }),
+      ...(coords === undefined ? {} : { placeLat: coords.latitude, placeLon: coords.longitude }),
       paidBy,
       split,
     };
@@ -451,6 +537,87 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
           ))}
         </ScrollView>
 
+        <Card style={{ paddingVertical: 13, paddingHorizontal: 17, borderRadius: RADIUS.lg }}>
+          <View style={{ gap: SPACING.md }}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Row gap={SPACING.sm} style={{ flex: 1 }}>
+                <IconClock size={17} color={t.textFaint} />
+                <Text variant="label" tone="muted">
+                  Quando
+                </Text>
+              </Row>
+              <Row gap={SPACING.sm}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Data da despesa"
+                  onPress={() => { setPicking('date'); }}
+                  hitSlop={6}
+                  style={{ backgroundColor: t.surfaceAlt, borderRadius: RADIUS.pill, paddingVertical: 6, paddingHorizontal: 12 }}
+                >
+                  <Text variant="caption" strong>
+                    {dayLabel(spentOn)}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Hora da despesa"
+                  onPress={() => { setPicking('time'); }}
+                  hitSlop={6}
+                  style={{ backgroundColor: t.surfaceAlt, borderRadius: RADIUS.pill, paddingVertical: 6, paddingHorizontal: 12 }}
+                >
+                  <Text variant="caption" strong numeric>
+                    {timeLabel(spentAt) ?? '--:--'}
+                  </Text>
+                </Pressable>
+              </Row>
+            </Row>
+
+            <Divider />
+
+            <Row gap={SPACING.sm}>
+              <IconPin size={17} color={t.textFaint} />
+              <TextInput
+                value={placeLabel}
+                onChangeText={(text) => {
+                  setPlaceLabel(text);
+                  setPlaceStatus('idle');
+                }}
+                placeholder="Onde foi?"
+                placeholderTextColor={t.textFaint}
+                accessibilityLabel="Endereço da despesa"
+                style={{ flex: 1, fontSize: 15, fontFamily: FONT.semi, color: t.text, minHeight: 26 }}
+              />
+              {placeStatus === 'loading' ? (
+                <ActivityIndicator size="small" color={t.textFaint} />
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Usar minha localização"
+                  onPress={useMyLocation}
+                  hitSlop={8}
+                >
+                  <Text variant="caption" strong tone="accent">
+                    Usar GPS
+                  </Text>
+                </Pressable>
+              )}
+            </Row>
+
+            {placeStatus === 'denied' ? (
+              <Text variant="caption" tone="warning">
+                Sem permissão de localização. Dá para digitar o lugar aqui do mesmo jeito.
+              </Text>
+            ) : null}
+
+            {placeStatus === 'no_address' && coords !== undefined ? (
+              <Text variant="caption" tone="faint" numeric>
+                Ponto guardado ({coords.latitude.toFixed(4)}, {coords.longitude.toFixed(4)}) — sem rede para
+                achar o endereço. Escreva o nome do lugar se quiser.
+              </Text>
+            ) : null}
+          </View>
+        </Card>
+
         {/* Uma linha, não um card com uma fileira de chips: quem pagou é quase
             sempre quem está lançando, então isto é confirmação, não escolha. */}
         <Card
@@ -618,6 +785,48 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
       >
         <Button label={editing ? 'Salvar alterações' : 'Salvar despesa'} onPress={save} disabled={!canSave} />
       </View>
+
+      {picking === undefined ? null : Platform.OS === 'android' ? (
+        <DateTimePicker
+          value={spentAtDate}
+          mode={picking}
+          display="default"
+          onValueChange={onPickDateTime}
+          onDismiss={() => { setPicking(undefined); }}
+          {...(picking === 'date' ? { maximumDate: new Date() } : {})}
+        />
+      ) : (
+        <Modal visible transparent animationType="fade" onRequestClose={() => { setPicking(undefined); }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Fechar"
+            onPress={() => { setPicking(undefined); }}
+            style={{ flex: 1, backgroundColor: 'rgba(10, 9, 12, 0.55)' }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              left: SPACING.sm,
+              right: SPACING.sm,
+              bottom: insets.bottom + SPACING.sm,
+              backgroundColor: t.surface,
+              borderRadius: RADIUS.xl,
+              padding: SPACING.md,
+              gap: SPACING.sm,
+            }}
+          >
+            <DateTimePicker
+              value={spentAtDate}
+              mode={picking}
+              display="spinner"
+              onValueChange={onPickDateTime}
+              themeVariant={isDark ? 'dark' : 'light'}
+              {...(picking === 'date' ? { maximumDate: new Date() } : {})}
+            />
+            <Button label="Pronto" onPress={() => { setPicking(undefined); }} />
+          </View>
+        </Modal>
+      )}
 
       <ActionSheet
         visible={payerSheetOpen}

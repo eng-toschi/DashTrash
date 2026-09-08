@@ -12,15 +12,30 @@
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Para fotografar recibos e ler o QR do convite.",
-        "NSPhotoLibraryUsageDescription": "Para anexar a foto de um recibo a uma despesa."
+        "NSPhotoLibraryUsageDescription": "Para anexar a foto de um recibo a uma despesa.",
+        "NSLocationWhenInUseUsageDescription": "Para registrar onde cada despesa aconteceu. A localização é usada só no momento do lançamento e fica gravada apenas neste aparelho."
       }
     },
     "android": {
       "package": "app.rachei.mobile",
       "edgeToEdgeEnabled": true,
-      "permissions": ["CAMERA"]
+      "permissions": [
+        "CAMERA",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
-    "plugins": ["expo-router"],
-    "experiments": { "tsconfigPaths": true }
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Para registrar onde cada despesa aconteceu, quando você tocar em \"Usar GPS\"."
+        }
+      ]
+    ],
+    "experiments": {
+      "tsconfigPaths": true
+    }
   }
 }

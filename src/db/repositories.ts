@@ -47,6 +47,10 @@ export interface ExpenseRow {
   payment_method: string;
   iof_ppm: number;
   spent_on: string;
+  spent_at: string | null;
+  place_label: string | null;
+  place_lat: number | null;
+  place_lon: number | null;
   paid_by: string;
   split_type: 'equal' | 'exact';
   note: string | null;
@@ -98,9 +102,30 @@ export function listActiveParticipants(db: Database, tripId: string): Participan
 
 export function listExpenses(db: Database, tripId: string): ExpenseRow[] {
   return db.all<ExpenseRow>(
-    'SELECT * FROM expenses WHERE trip_id = ? AND deleted_at IS NULL ORDER BY spent_on DESC, id DESC',
+    `SELECT * FROM expenses WHERE trip_id = ? AND deleted_at IS NULL
+     ORDER BY spent_on DESC, spent_at DESC, id DESC`,
     [tripId],
   );
+}
+
+/**
+ * A moeda da última despesa lançada na viagem.
+ *
+ * Numa viagem ao Japão TODAS as despesas são em iene, e voltar para a moeda-base
+ * a cada lançamento obrigava a trocar de novo toda vez. A última usada acerta
+ * quase sempre; quando erra, custa um toque — o mesmo toque que custava sempre.
+ *
+ * Ordena por `spent_at` antes de `spent_on` porque duas despesas do mesmo dia
+ * precisam de desempate, e a hora é o desempate certo.
+ */
+export function lastExpenseCurrency(db: Database, tripId: string): string | undefined {
+  return db.get<{ currency: string }>(
+    `SELECT currency FROM expenses
+     WHERE trip_id = ? AND deleted_at IS NULL
+     ORDER BY spent_on DESC, spent_at DESC, updated_at DESC, id DESC
+     LIMIT 1`,
+    [tripId],
+  )?.currency;
 }
 
 export function listShares(db: Database, expenseId: string): Share[] {
