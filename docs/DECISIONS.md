@@ -206,3 +206,21 @@ servidor (Fase 6), ele serve esse número, e aí muda sem depender de atualizaç
 Consequência de projeto: o seletor de forma de pagamento saiu da tela. Hoje cartão, espécie e
 conta global pagam a mesma alíquota, então dois controles decidiam a mesma coisa. A coluna
 `payment_method` continua no banco para quando voltarem a divergir.
+
+## 2026-09-08 — O dossiê é uma função pura, e confere a si mesmo
+
+O PDF do fechamento é o documento que as pessoas guardam e conferem meses depois, quando ninguém
+lembra mais do contexto. Se ele discordar do que o app mostrou, a confiança na conta inteira vai
+junto.
+
+Por isso ele é montado em duas funções puras — `buildDossier` (números) e `renderDossierHtml`
+(documento) — testadas sem abrir o app, inclusive com teste de propriedade sobre viagens
+aleatórias. E ele carrega a própria conferência no rodapé: se as somas por categoria, por moeda
+ou por pessoa não baterem com o total, o texto diz isso em vez de o papel parecer correto.
+
+Duas armadilhas que já custaram caro em outros pontos e foram cobertas de saída: escapar o que o
+usuário digitou (uma viagem chamada "Praia & Cia" quebraria o documento em silêncio) e tirar o
+acento do nome do arquivo, senão "Japão" vira "jap-o".
+
+Geração local, via `expo-print`: sem servidor, sem upload, funcionando no voo de volta — que é
+onde a viagem costuma ser fechada.

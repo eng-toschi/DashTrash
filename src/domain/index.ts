@@ -7,3 +7,4 @@ export * from './payment';
 export * from './pix';
 export * from './settle';
 export * from './summary';
+export * from './dossier';

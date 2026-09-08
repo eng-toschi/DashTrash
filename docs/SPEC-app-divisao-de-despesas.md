@@ -550,6 +550,12 @@ Toda tela precisa dos **quatro estados**: carregando (skeleton, não spinner cen
    ficar apenas desabilitado.
    O resumo é compartilhável como texto e imagem (é o que vai para o grupo do WhatsApp) e
    exportável em CSV.
+   **(d) Dossiê em PDF:** o documento que sobra da viagem — total, gasto por categoria, por
+   moeda, por pessoa (pagou / consumiu / acertos / saldo), a lista completa de despesas com o
+   valor original ao lado do convertido, os pagamentos registrados e o que ainda falta. Gerado
+   **no aparelho**, sem servidor, porque a viagem costuma ser fechada no voo de volta. O
+   documento carrega no rodapé a própria conferência: se as somas por categoria, por moeda e
+   por pessoa não fecharem com o total, ele diz isso em vez de parecer correto.
 9. **Participantes.** Adicionar, renomear, arquivar. **Remover só se saldo zero e sem despesas** —
    caso contrário, arquivar. Isso é o que impede corromper o saldo do grupo inteiro.
 10. **Convite.** `rachei://join/{token}` + link universal + **QR code** — o caso real é a mesa

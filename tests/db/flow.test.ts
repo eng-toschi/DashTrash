@@ -11,6 +11,12 @@ import { computeBalances, totalIof, totalSpent } from '@/domain/balance';
 import { sumCents } from '@/domain/money';
 import { buildPixPayload, isValidPixPayload, parsePixKey } from '@/domain/pix';
 import { applyTransfers, paymentOptions, simplifyDebts } from '@/domain/settle';
+import { dossierChecks } from '@/domain/dossier';
+import {
+  buildTripDossier,
+  dossierFileName,
+  renderTripDossier,
+} from '@/features/report/generateDossier';
 import { makeContext, openTestDb } from './_harness';
 
 /**
@@ -169,5 +175,49 @@ describe('viagem de ponta a ponta', () => {
     const fechado = computeBalances(loadLedger(db, tripId));
     expect(fechado.balances.every((b) => b.cents === 0)).toBe(true);
     expect(simplifyDebts(fechado.balances)).toEqual([]);
+  });
+});
+
+describe('dossiê de uma viagem real', () => {
+  it('gera o documento a partir do banco, com as somas fechando', () => {
+    const db = openTestDb();
+    const ctx = makeContext();
+    const tripId = createTrip(db, ctx, {
+      name: 'Japão & Coreia',
+      baseCurrency: 'BRL',
+      startsOn: '2026-03-12',
+      endsOn: '2026-03-26',
+    });
+
+    const voce = addParticipant(db, ctx, { tripId, displayName: 'Você', userId: localActorId(db) });
+    const ana = addParticipant(db, ctx, { tripId, displayName: 'Ana' });
+    if (!voce.ok || !ana.ok) throw new Error('participantes não criados');
+
+    createExpense(db, ctx, {
+      tripId,
+      description: 'Hotel <Shinjuku>',
+      category: 'lodging',
+      amountCents: 96_000,
+      currency: 'JPY',
+      fxRatePpm: 37_000,
+      iofPpm: 35_000,
+      spentOn: '2026-03-13',
+      paidBy: ana.value,
+      split: { type: 'equal', participantIds: [voce.value, ana.value] },
+    });
+
+    const dossier = buildTripDossier(db, tripId, '2026-09-08');
+    expect(dossier.tripName).toBe('Japão & Coreia');
+    expect(dossier.totalCents).toBe(367_632);
+    expect(dossierChecks(dossier)).toEqual({
+      categoriesMatchTotal: true,
+      currenciesMatchTotal: true,
+      balancesSumToZero: true,
+    });
+
+    const html = renderTripDossier(db, tripId, '2026-09-08');
+    expect(html).toContain('Japão &amp; Coreia');
+    expect(html).toContain('Hotel &lt;Shinjuku&gt;');
+    expect(dossierFileName(dossier.tripName)).toBe('dossie-japao-coreia');
   });
 });

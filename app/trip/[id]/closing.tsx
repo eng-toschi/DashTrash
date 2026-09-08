@@ -3,6 +3,8 @@ import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { archiveTrip, recordSettlement } from '@/commands';
 import {
   getTrip,
@@ -19,7 +21,8 @@ import { formatMoney } from '@/domain/money';
 import { buildPixPayload, parsePixKey } from '@/domain/pix';
 import { computeRealDebts, paymentOptions, simplifyDebts, type Transfer } from '@/domain/settle';
 import { convertCents } from '@/domain/fx';
-import { useMutate, useQuery } from '@/state/database';
+import { dossierFileName, renderTripDossier } from '@/features/report/generateDossier';
+import { useDatabase, useMutate, useQuery } from '@/state/database';
 import { CATEGORY_LABELS, todayIso } from '@/state/format';
 import { Avatar, Button, Card, Chip, Divider, MoneyText, Row, SegmentedControl, Text } from '@/ui/components';
 import { IconBack, IconCopy } from '@/ui/icons';
@@ -41,6 +44,7 @@ export default function ClosingScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const mutate = useMutate();
+  const { db } = useDatabase();
   const params = useLocalSearchParams();
   const tripId = typeof params.id === 'string' ? params.id : '';
   const [mode, setMode] = useState<'simple' | 'real'>('simple');
@@ -118,6 +122,31 @@ export default function ClosingScreen() {
         settledOn: todayIso(),
       });
     });
+  };
+
+  /**
+   * O dossiê é gerado no aparelho: nada sai daqui para servidor nenhum, e
+   * funciona no avião de volta, que é onde a viagem costuma ser fechada.
+   */
+  const exportDossier = (): void => {
+    void (async () => {
+      try {
+        const html = renderTripDossier(db, tripId, todayIso());
+        const { uri } = await Print.printToFileAsync({ html });
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'application/pdf',
+            UTI: 'com.adobe.pdf',
+            dialogTitle: dossierFileName(data.name),
+          });
+        } else {
+          await Print.printAsync({ html });
+        }
+      } catch {
+        Alert.alert('Não consegui gerar o dossiê', 'Tente de novo em alguns segundos.');
+      }
+    })();
   };
 
   const copyPix = (transfer: Transfer): void => {
@@ -352,6 +381,7 @@ export default function ClosingScreen() {
           gap: SPACING.sm,
         }}
       >
+        <Button label="Dossiê da viagem (PDF)" variant="secondary" onPress={exportDossier} />
         <Button
           label="Encerrar viagem"
           variant="inverse"
