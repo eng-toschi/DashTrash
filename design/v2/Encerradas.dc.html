@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Figtree:wght@400..800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Figtree', ui-sans-serif, system-ui, sans-serif; }
+    a { color: #6D4AFF; } a:hover { color: #5539D6; }
+    .num { font-variant-numeric: tabular-nums; }
+    .dsp { font-family: 'Bricolage Grotesque', 'Figtree', sans-serif; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #FAF7F2; color: #1F1B16; display: flex; flex-direction: column; position: relative; overflow: hidden;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 28px 20px 18px 20px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-size: 14px; font-weight: 600; color: #7A7168;">Suas contas de viagem</span>
+      <span class="dsp" style="font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">Minhas viagens</span>
+    </div>
+    <div style="width: 40px; height: 40px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E8E1D7; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7A7168" stroke-width="2.1"><circle cx="12" cy="12" r="8.4"></circle><path d="M12 3.6a8.4 8.4 0 0 1 0 16.8z" fill="#7A7168"></path></svg>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px; padding: 0 20px; overflow: hidden;">
+
+    <div style="background: #FFFFFF; border: 1px solid #E8E1D7; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 6px 20px rgba(31, 27, 22, 0.05);">
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <span class="dsp" style="font-size: 20px; font-weight: 700; letter-spacing: -0.01em;">Japão</span>
+          <span style="font-size: 12.5px; color: #7A7168; font-weight: 500;">12 – 26 de março · 4 pessoas</span>
+        </div>
+        <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #1F8A5B; background: #E3F5EC; padding: 5px 10px; border-radius: 999px;">Em curso</span>
+      </div>
+
+      <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-size: 12.5px; font-weight: 600; color: #7A7168;">Você tem a receber</span>
+          <span class="dsp num" style="font-size: 28px; font-weight: 700; color: #1F8A5B; letter-spacing: -0.02em;">R$ 1.284,30</span>
+        </div>
+        <div style="display: flex; align-items: center;">
+          <div style="width: 34px; height: 34px; border-radius: 999px; background: #E2A63C; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; border: 2px solid #FFFFFF;">V</div>
+          <div style="width: 34px; height: 34px; border-radius: 999px; background: #E8654F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; border: 2px solid #FFFFFF; margin-left: -10px;">A</div>
+          <div style="width: 34px; height: 34px; border-radius: 999px; background: #3FA97A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; border: 2px solid #FFFFFF; margin-left: -10px;">C</div>
+          <div style="width: 34px; height: 34px; border-radius: 999px; background: #4A8FE0; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; border: 2px solid #FFFFFF; margin-left: -10px;">B</div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 7px;">
+        <div style="display: flex; height: 6px; border-radius: 999px; overflow: hidden; background: #F3EEE7;">
+          <div style="width: 48.6%; background: #E2A63C;"></div>
+          <div style="width: 25.1%; background: #E8654F;"></div>
+          <div style="width: 17%; background: #3FA97A;"></div>
+          <div style="width: 9.3%; background: #4A8FE0;"></div>
+        </div>
+        <span class="num" style="font-size: 12.5px; color: #7A7168; font-weight: 500;">R$ 18.402,10 gastos · 24 despesas</span>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; padding: 6px 2px 0 2px;">
+      <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #A79C90;">Encerradas</span>
+      <div style="flex-grow: 1; height: 1px; background: #E8E1D7;"></div>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E8E1D7; border-radius: 20px; display: flex; flex-direction: column;">
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <span style="font-size: 15.5px; font-weight: 600;">Alemanha</span>
+          <span style="font-size: 12.5px; color: #A79C90; font-weight: 500;">mar 2026 · 2 pessoas · 2 despesas</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 5px; color: #1F8A5B; flex-shrink: 0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span style="font-size: 12.5px; font-weight: 600;">Acertado</span>
+        </div>
+        <div style="width: 30px; height: 30px; border-radius: 999px; background: #F3EEE7; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A7168" stroke-width="2.6" stroke-linecap="round"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg>
+        </div>
+      </div>
+
+      <div style="height: 1px; background: #F3EEE7; margin-left: 16px;"></div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <span style="font-size: 15.5px; font-weight: 600;">Casa do Caralho</span>
+          <span style="font-size: 12.5px; color: #A79C90; font-weight: 500;">fev 2026 · 4 pessoas · 3 despesas</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 5px; color: #1F8A5B; flex-shrink: 0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span style="font-size: 12.5px; font-weight: 600;">Acertado</span>
+        </div>
+        <div style="width: 30px; height: 30px; border-radius: 999px; background: #F3EEE7; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A7168" stroke-width="2.6" stroke-linecap="round"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg>
+        </div>
+      </div>
+
+      <div style="height: 1px; background: #F3EEE7; margin-left: 16px;"></div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <span style="font-size: 15.5px; font-weight: 600;">Las Vegas</span>
+          <span style="font-size: 12.5px; color: #A79C90; font-weight: 500;">nov 2025 · 3 pessoas · 4 despesas</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 5px; color: #B47B10; flex-shrink: 0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4l3 2"></path></svg>
+          <span style="font-size: 12.5px; font-weight: 600;">R$ 40 em aberto</span>
+        </div>
+        <div style="width: 30px; height: 30px; border-radius: 999px; background: #F3EEE7; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A7168" stroke-width="2.6" stroke-linecap="round"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg>
+        </div>
+      </div>
+
+      <div style="height: 1px; background: #F3EEE7; margin-left: 16px;"></div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <span style="font-size: 15.5px; font-weight: 600;">Bariloche</span>
+          <span style="font-size: 12.5px; color: #A79C90; font-weight: 500;">jul 2025 · 5 pessoas · 18 despesas</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 5px; color: #1F8A5B; flex-shrink: 0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span style="font-size: 12.5px; font-weight: 600;">Acertado</span>
+        </div>
+        <div style="width: 30px; height: 30px; border-radius: 999px; background: #F3EEE7; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A7168" stroke-width="2.6" stroke-linecap="round"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 20px 30px 20px; background: #FAF7F2; display: flex;">
+    <div style="flex-grow: 1; background: #1F1B16; color: #FAF7F2; border-radius: 999px; height: 54px; display: flex; align-items: center; justify-content: center; gap: 9px; box-shadow: 0 10px 24px rgba(31, 27, 22, 0.22);">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <span style="font-size: 15.5px; font-weight: 700;">Nova viagem</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

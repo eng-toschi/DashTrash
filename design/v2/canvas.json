@@ -1,0 +1,13 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "title": "Nova despesa · claro" },
+    { "file": "NovaDespesaEscuro.dc.html", "x": 490, "y": 0, "w": 390, "h": 844, "title": "Nova despesa · escuro" },
+    { "file": "Encerradas.dc.html", "x": 980, "y": 0, "w": 390, "h": 844, "title": "Encerradas · claro" },
+    { "file": "EncerradasEscuro.dc.html", "x": 1470, "y": 0, "w": 390, "h": 844, "title": "Encerradas · menu aberto" }
+  ],
+  "annotations": [
+    { "id": "nota-valor", "x": 0, "y": -150, "w": 390, "text": "O que muda: a moeda vira uma pílula colada ao número, na mesma linha de base. Some a fileira de três chips no topo, e o vazio de 200px acima do valor.\n\nA categoria abre marcada (Restaurante), com a cor dela." },
+    { "id": "nota-encerradas", "x": 980, "y": -150, "w": 880, "text": "O que muda: cada viagem encerrada é UMA linha de 62px, todas numa lista só. Quatro viagens ocupam o que hoje uma e meia ocupa.\n\nDossiê e Descartar saem da linha e vão para o menu do «···» — à direita, a informação que importa: acertado, ou quanto ficou em aberto." }
+  ],
+  "launch": { "view": "canvas" }
+}

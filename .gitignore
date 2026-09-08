@@ -3,6 +3,9 @@ coverage/
 dist/
 .DS_Store
 *.log
+# Canvas de design semeado: ~2,5 MB de editor embutido, regerado a partir dos
+# .dc.html ao lado. As fontes ficam versionadas; o pacote, não.
 design/rachei-telas.html
+design/v2/rachei-nova-despesa-e-encerradas.html
 .expo/
 .expo-export/

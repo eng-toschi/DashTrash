@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Figtree:wght@400..800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Figtree', ui-sans-serif, system-ui, sans-serif; }
+    a { color: #6D4AFF; } a:hover { color: #5539D6; }
+    .num { font-variant-numeric: tabular-nums; }
+    .dsp { font-family: 'Bricolage Grotesque', 'Figtree', sans-serif; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #FAF7F2; color: #1F1B16; display: flex; flex-direction: column; position: relative; overflow: hidden;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 26px 20px 0 20px;">
+    <span style="font-size: 14px; font-weight: 600; color: #7A7168;">Cancelar</span>
+    <span class="dsp" style="font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Nova despesa</span>
+    <span style="font-size: 14px; font-weight: 600; color: transparent;">Cancelar</span>
+  </div>
+
+  <div style="display: flex; align-items: baseline; justify-content: center; gap: 10px; padding: 26px 20px 22px 20px;">
+    <div style="display: flex; align-items: center; gap: 5px; background: #F3EEE7; border-radius: 999px; padding: 7px 13px; align-self: center;">
+      <span style="font-size: 13.5px; font-weight: 700; color: #4A443C;">BRL</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7A7168" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+    <span class="dsp num" style="font-size: 52px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; color: #C9BFB2;">0,00</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 0 20px;">
+
+    <div style="background: #FFFFFF; border: 1px solid #E8E1D7; border-radius: 20px; padding: 15px 17px; display: flex; align-items: center; gap: 12px;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#A79C90" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h10"></path></svg>
+      <span style="font-size: 16px; font-weight: 600; color: #A79C90;">No que foi?</span>
+    </div>
+
+    <div style="display: flex; gap: 8px; overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 7px; background: #E8654F24; border: 1px solid #E8654F80; border-radius: 999px; padding: 9px 14px; flex-shrink: 0;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E8654F" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2V2"></path><path d="M5.5 2v20"></path><path d="M18 2c-1.7 1.3-3 3.5-3 6.5 0 2 1 3.5 3 3.5v10"></path></svg>
+        <span style="font-size: 13.5px; font-weight: 700; color: #E8654F;">Restaurante</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 7px; background: #FFFFFF; border: 1px solid #E8E1D7; border-radius: 999px; padding: 9px 14px; flex-shrink: 0;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A7168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V9l9-5 9 5v11"></path><path d="M3 20h18"></path><path d="M9 20v-6h6v6"></path></svg>
+        <span style="font-size: 13.5px; font-weight: 600; color: #7A7168;">Hospedagem</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 7px; background: #FFFFFF; border: 1px solid #E8E1D7; border-radius: 999px; padding: 9px 14px; flex-shrink: 0;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A7168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14"></path><path d="M6 17V9l1.8-4h8.4L18 9v8"></path><path d="M6 12h12"></path></svg>
+        <span style="font-size: 13.5px; font-weight: 600; color: #7A7168;">Transp</span>
+      </div>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E8E1D7; border-radius: 20px; padding: 13px 17px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+      <span style="font-size: 14px; font-weight: 600; color: #7A7168;">Quem pagou</span>
+      <div style="display: flex; align-items: center; gap: 9px;">
+        <div style="width: 27px; height: 27px; border-radius: 999px; background: #E2A63C; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">V</div>
+        <span style="font-size: 15px; font-weight: 700;">Você</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A79C90" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </div>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E8E1D7; border-radius: 22px; padding: 16px 17px; display: flex; flex-direction: column; gap: 13px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+        <span style="font-size: 14px; font-weight: 600; color: #7A7168;">Dividir entre</span>
+        <span class="num" style="font-size: 13px; font-weight: 700; color: #6D4AFF;">2 de 2 · igual</span>
+      </div>
+
+      <div style="display: flex; background: #F3EEE7; border-radius: 999px; padding: 3px; gap: 3px;">
+        <div style="flex-grow: 1; background: #FFFFFF; border-radius: 999px; padding: 8px 0; text-align: center; font-size: 13px; font-weight: 700; box-shadow: 0 1px 4px rgba(31,27,22,0.08);">Igual</div>
+        <div style="flex-grow: 1; border-radius: 999px; padding: 8px 0; text-align: center; font-size: 13px; font-weight: 600; color: #7A7168;">Valor exato</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; gap: 11px; padding: 8px 0;">
+          <div style="width: 30px; height: 30px; border-radius: 999px; background: #E2A63C; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700;">V</div>
+          <span style="flex-grow: 1; font-size: 15px; font-weight: 600;">Você</span>
+          <span class="num" style="font-size: 14px; font-weight: 700; color: #A79C90;">—</span>
+          <div style="width: 23px; height: 23px; border-radius: 8px; background: #6D4AFF; display: flex; align-items: center; justify-content: center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+        </div>
+        <div style="height: 1px; background: #F3EEE7;"></div>
+        <div style="display: flex; align-items: center; gap: 11px; padding: 8px 0;">
+          <div style="width: 30px; height: 30px; border-radius: 999px; background: #4A8FE0; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700;">Z</div>
+          <span style="flex-grow: 1; font-size: 15px; font-weight: 600;">Ze</span>
+          <span class="num" style="font-size: 14px; font-weight: 700; color: #A79C90;">—</span>
+          <div style="width: 23px; height: 23px; border-radius: 8px; background: #6D4AFF; display: flex; align-items: center; justify-content: center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 20px 30px 20px; background: #FAF7F2; border-top: 1px solid #E8E1D7; display: flex;">
+    <div style="flex-grow: 1; background: #F3EEE7; border-radius: 999px; height: 54px; display: flex; align-items: center; justify-content: center;">
+      <span style="font-size: 15.5px; font-weight: 700; color: #A79C90;">Salvar despesa</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
