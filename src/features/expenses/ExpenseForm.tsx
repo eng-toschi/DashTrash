@@ -29,7 +29,6 @@ import {
   listActiveParticipants,
   listRates,
   listTripCurrencies,
-  listSubgroups,
   saveRate,
 } from '@/db/repositories';
 import { RATE_SCALE, formatRate, parseRateInput, selectRateForDate } from '@/domain/fx';
@@ -55,7 +54,6 @@ import {
   Button,
   Card,
   CategoryChip,
-  Chip,
   Divider,
   RadioChip,
   Row,
@@ -110,7 +108,6 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
 
   const trip = useQuery((database) => getTrip(database, tripId));
   const people = useQuery((database) => listActiveParticipants(database, tripId));
-  const subgroups = useQuery((database) => listSubgroups(database, tripId));
   const me = useQuery((database) => findMe(database, tripId));
   const baseCurrency = trip?.base_currency ?? 'BRL';
 
@@ -499,12 +496,15 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
             </View>
           ) : null}
 
-          {currency !== baseCurrency ? (
+          {/* A caixa de câmbio só aparece quando tem algo a fazer: buscando,
+              ou quando a busca falhou e sobra corrigir na mão. Com a cotação
+              já resolvida (o caso comum — o dia já tinha cotação, ou a busca
+              deu certo), ela ficava vazia com só o placeholder "0,00", lendo
+              como um campo esquecido em vez de um campo sem uso. A taxa usada
+              continua visível na linha "· taxa X" acima. */}
+          {currency !== baseCurrency && (rateStatus === 'loading' || rateStatus === 'failed') ? (
             <Card style={{ width: '100%', paddingVertical: SPACING.md }}>
               <View style={{ gap: SPACING.sm }}>
-                {/* Sem a pergunta por extenso: o "≈" e a "taxa" acima já dizem
-                    o que esse número é. Só some o texto durante a busca, que
-                    é a única hora em que vale explicar a espera. */}
                 <Row style={{ justifyContent: rateStatus === 'loading' ? 'flex-start' : 'flex-end' }}>
                   {rateStatus === 'loading' ? (
                     <>
@@ -694,29 +694,6 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
                 {selected.length} de {people.length} · {mode === 'equal' ? 'igual' : 'valor exato'}
               </Text>
             </Row>
-
-            {/* "Todos" virou a primeira linha da lista, não mais um chip: um
-                chip do tamanho de uma pessoa, sempre selecionado no caso comum
-                (todo mundo na despesa), só ocupava espaço para dizer o que já
-                era verdade. Os subgrupos salvos continuam como chips — esses
-                sim mudam de despesa para despesa. */}
-            {subgroups.length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.sm }}>
-                {subgroups.map((group) => (
-                  <Chip
-                    key={group.id}
-                    label={
-                      group.label ??
-                      group.participantIds
-                        .map((pid) => people.find((p) => p.id === pid)?.display_name ?? '')
-                        .filter((n) => n !== '')
-                        .join(', ')
-                    }
-                    onPress={() => { setSelected(group.participantIds); }}
-                  />
-                ))}
-              </ScrollView>
-            ) : null}
 
             <SegmentedControl
               value={mode}
@@ -931,34 +908,20 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
         onClose={() => { setPayerSheetOpen(false); }}
       />
 
+      {/* Uma barra colada no teclado, não um botão boiando por cima dele — é
+          o mesmo desenho que o Safari e o Mail usam nos campos numéricos do
+          próprio iOS: sem pílula, sem ícone, só o texto de "concluir" no
+          canto onde a tecla Enter ficaria se o teclado decimal tivesse uma. */}
       {Platform.OS === 'ios' ? (
         <InputAccessoryView nativeID={AMOUNT_ACCESSORY_ID}>
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'flex-end',
-              backgroundColor: t.surfaceAlt,
-              borderTopWidth: StyleSheet.hairlineWidth * 2,
-              borderTopColor: t.border,
-              padding: SPACING.sm,
-            }}
-          >
+          <View style={{ backgroundColor: t.surfaceAlt, borderTopWidth: StyleSheet.hairlineWidth * 2, borderTopColor: t.border }}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Concluído"
               onPress={() => { Keyboard.dismiss(); }}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                backgroundColor: t.accent,
-                borderRadius: RADIUS.pill,
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-              }}
+              style={{ minHeight: 44, justifyContent: 'center', alignItems: 'flex-end', paddingHorizontal: SPACING.lg }}
             >
-              <IconCheck size={14} color={t.onAccent} />
-              <Text variant="caption" strong style={{ color: t.onAccent }}>
+              <Text variant="body" strong tone="accent">
                 Concluído
               </Text>
             </Pressable>

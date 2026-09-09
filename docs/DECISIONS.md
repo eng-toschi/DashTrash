@@ -447,3 +447,29 @@ lista de participantes, com o mesmo desenho de linha e caixa de seleção —
 some quando a viagem não tem ninguém para listar. Os subgrupos salvos
 continuam como chips, porque esses de fato mudam de despesa para despesa; a
 fileira de chips agora só aparece quando existe pelo menos um subgrupo salvo.
+
+## 2026-09-09 — Câmbio some quando não há nada a corrigir; subgrupos saem da tela
+
+**A caixa de câmbio só aparece buscando ou quando a busca falhou.** Com a
+cotação já resolvida — o caso comum, seja por busca ter dado certo ou por já
+existir cotação do dia — ela ficava com o campo vazio mostrando só o
+placeholder "0,00", lendo como campo esquecido, não como campo sem uso
+naquele momento. A taxa aplicada continua visível na linha "· taxa X" da
+decomposição, que é onde ela é útil de verdade.
+
+**Chips de subgrupo saem da tela do lançamento.** Era a única fileira de
+chips que sobrava ali, e cabia mal entre o cabeçalho "Dividir entre" e o
+`Igual`/`Valor exato`. A GRAVAÇÃO continua rodando (`rememberSubgroup`,
+`trip_subgroups`) — só a leitura na tela foi retirada. Fica registrado aqui
+porque é uma decisão deliberadamente parcial: se ninguém voltar a mostrar
+subgrupo em lugar nenhum, a tabela vira peso morto e vale revisitar.
+
+## 2026-09-09 — A barra do teclado numérico vira barra, não botão
+
+O `InputAccessoryView` tinha um botão-pílula cor de destaque flutuando no meio
+da barra — lido como um elemento solto por cima do teclado, não como parte
+dele. Virou uma faixa cheia, sem pílula nem ícone, com "Concluído" em texto
+simples no canto direito: o mesmo desenho que o Safari e o Mail usam nos
+próprios campos numéricos do iOS. É o texto que ocupa o lugar onde ficaria a
+tecla Enter, se o teclado decimal tivesse uma — que é a limitação real (da
+Apple, não do app): esse teclado nunca teve essa tecla.
