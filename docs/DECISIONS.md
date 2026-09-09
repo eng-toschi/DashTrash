@@ -415,3 +415,16 @@ há o que escolher.
 `RadioChip` foi para `src/ui/components.tsx`, ao lado do `Chip`: é um padrão
 de seleção única — o círculo marca "só esta pode estar marcada" — diferente do
 quadrado que a lista de "Dividir entre" usa, que é seleção múltipla.
+
+## 2026-09-09 — IOF sai da caixa, e o câmbio para de explicar o óbvio
+
+Duas limpezas na mesma tela, pedidas juntas:
+
+- **O IOF deixou de estar dentro do card de câmbio.** Virou uma linha solta,
+  sem moldura, ainda só sim/não. A caixa continua existindo — mas só para o
+  campo de taxa, que tem busca online e mensagem de erro para justificá-la; o
+  IOF nunca precisou dela.
+- **Some a pergunta "Quanto vale 1 USD em BRL?".** O "≈" e a "taxa" que já
+  aparecem acima, na decomposição do valor, dizem a mesma coisa. O texto só
+  volta durante a busca ("Buscando a cotação de hoje…"), que é a única hora
+  em que uma frase ali ajuda de verdade.

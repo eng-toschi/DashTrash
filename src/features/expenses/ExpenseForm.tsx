@@ -488,13 +488,18 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
           {currency !== baseCurrency ? (
             <Card style={{ width: '100%', paddingVertical: SPACING.md }}>
               <View style={{ gap: SPACING.sm }}>
-                <Row>
-                  <Text variant="caption" tone="muted" style={{ flex: 1 }}>
-                    {rateStatus === 'loading'
-                      ? 'Buscando a cotação de hoje…'
-                      : `Quanto vale 1 ${currency} em ${baseCurrency}?`}
-                  </Text>
-                  {rateStatus === 'loading' ? <ActivityIndicator size="small" color={t.textFaint} /> : null}
+                {/* Sem a pergunta por extenso: o "≈" e a "taxa" acima já dizem
+                    o que esse número é. Só some o texto durante a busca, que
+                    é a única hora em que vale explicar a espera. */}
+                <Row style={{ justifyContent: rateStatus === 'loading' ? 'flex-start' : 'flex-end' }}>
+                  {rateStatus === 'loading' ? (
+                    <>
+                      <Text variant="caption" tone="muted" style={{ flex: 1 }}>
+                        Buscando a cotação de hoje…
+                      </Text>
+                      <ActivityIndicator size="small" color={t.textFaint} />
+                    </>
+                  ) : null}
                   <TextInput
                     value={rateText}
                     onChangeText={setRateText}
@@ -511,27 +516,26 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
                     Não consegui buscar a cotação agora. Digite a taxa — dá para corrigir depois.
                   </Text>
                 ) : null}
-
-                <Divider />
-
-                {/* Sem legenda e sem alíquota à mostra: a tela só precisa
-                    perguntar se tem IOF ou não. A alíquota usada é a
-                    `DEFAULT_IOF_PPM` do momento — o valor já aparece somado
-                    na decomposição acima ("R$ X + IOF R$ Y"), que é onde
-                    essa informação é útil de verdade. */}
-                <Row>
-                  <Text variant="label" style={{ flex: 1 }}>
-                    Tem IOF
-                  </Text>
-                  <Switch
-                    value={hasIof}
-                    onValueChange={setHasIof}
-                    accessibilityLabel="Esta compra tem IOF"
-                    trackColor={{ true: t.accent, false: t.border }}
-                  />
-                </Row>
               </View>
             </Card>
+          ) : null}
+
+          {/* O IOF sai da caixa: é só uma pergunta de sim/não, não precisa da
+              moldura que o campo de câmbio (que tem texto de erro e busca
+              online) ainda justifica. A alíquota usada é a `DEFAULT_IOF_PPM`
+              do momento — já soma na decomposição acima ("R$ X + IOF R$ Y"). */}
+          {currency !== baseCurrency ? (
+            <Row style={{ width: '100%', paddingVertical: SPACING.xs }}>
+              <Text variant="label" style={{ flex: 1 }}>
+                Tem IOF
+              </Text>
+              <Switch
+                value={hasIof}
+                onValueChange={setHasIof}
+                accessibilityLabel="Esta compra tem IOF"
+                trackColor={{ true: t.accent, false: t.border }}
+              />
+            </Row>
           ) : null}
         </View>
 
