@@ -278,6 +278,64 @@ export function Chip({
 }
 
 /**
+ * Opção de escolha única, com o dote de rádio à vista.
+ *
+ * O `Chip` normal esconde a seleção no preenchimento — bom quando só uma
+ * opção está visível por vez, ruim quando são poucas e mutuamente exclusivas
+ * (a moeda da despesa, por exemplo): ali o dote deixa claro, sem precisar
+ * abrir nada, que só uma pode estar marcada e qual é.
+ */
+export function RadioChip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const t = useTheme();
+
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: selected ? t.accentSoft : t.surfaceAlt,
+        borderRadius: RADIUS.pill,
+        borderWidth: StyleSheet.hairlineWidth * 2,
+        borderColor: selected ? t.accent : 'transparent',
+        minHeight: 38,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+      }}
+    >
+      <View
+        style={{
+          width: 16,
+          height: 16,
+          borderRadius: RADIUS.pill,
+          borderWidth: 2,
+          borderColor: selected ? t.accent : t.textFaint,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {selected ? <View style={{ width: 8, height: 8, borderRadius: RADIUS.pill, backgroundColor: t.accent }} /> : null}
+      </View>
+      <RNText style={{ fontFamily: FONT.bold, fontSize: 13.5, color: selected ? t.accent : t.textMuted }}>
+        {label}
+      </RNText>
+    </Pressable>
+  );
+}
+
+/**
  * Chip de categoria: ícone e cor da própria categoria.
  *
  * A cor não é enfeite — é o que deixa a lista de despesas legível de relance,

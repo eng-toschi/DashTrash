@@ -397,3 +397,21 @@ número continua visível onde ele é útil de verdade: na decomposição acima 
 formulário ("R$ 458,80 + IOF R$ 16,06"). Editar a alíquota manualmente deixou
 de ser possível pela tela; se o decreto mudar de novo, é `IOF_DEFAULT_PPM` que
 muda, não um campo que cada pessoa lembra de ajustar.
+
+## 2026-09-09 — Moeda por rádio, não por folha — **revoga a de 09/09 sobre a folha**
+
+A folha de moeda durou uma versão. Trocada por uma fileira de `RadioChip`
+acima do valor: o mesmo padrão do `Chip`, com um dote de rádio que mostra a
+seleção sem precisar abrir nada. Continua valendo o essencial da decisão
+anterior — só as moedas que a viagem já tem, moeda-base sempre incluída — só
+mudou a interação.
+
+Faz sentido especificamente aqui porque o conjunto é sempre pequeno (a
+viagem raramente tem mais que duas ou três moedas) e cabe inteiro na tela: com
+poucas opções sempre visíveis, abrir uma folha para escolher era um toque a
+mais para ver o que já cabia ali. Some quando a viagem tem só uma moeda — não
+há o que escolher.
+
+`RadioChip` foi para `src/ui/components.tsx`, ao lado do `Chip`: é um padrão
+de seleção única — o círculo marca "só esta pode estar marcada" — diferente do
+quadrado que a lista de "Dividir entre" usa, que é seleção múltipla.

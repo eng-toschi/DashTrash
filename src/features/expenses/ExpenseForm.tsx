@@ -48,7 +48,18 @@ import {
 import { capturePlace } from '@/services/place';
 import DateTimePicker, { type DateTimePickerChangeEvent } from '@react-native-community/datetimepicker';
 import { ActionSheet, type SheetAction } from '@/ui/ActionSheet';
-import { Avatar, Button, Card, CategoryChip, Chip, Divider, Row, SegmentedControl, Text } from '@/ui/components';
+import {
+  Avatar,
+  Button,
+  Card,
+  CategoryChip,
+  Chip,
+  Divider,
+  RadioChip,
+  Row,
+  SegmentedControl,
+  Text,
+} from '@/ui/components';
 import { IconCheck, IconChevron, IconClock, IconPin, IconTrash } from '@/ui/icons';
 import { useTheme, useThemeControl } from '@/ui/theme';
 import { FONT, MIN_TOUCH, RADIUS, SPACING } from '@/ui/tokens';
@@ -122,7 +133,6 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
     initial?.currency ?? lastExpenseCurrency(db, tripId) ?? baseCurrency,
   );
   const [rateText, setRateText] = useState(initial === undefined ? '' : formatRate(initial.fxRatePpm));
-  const [currencySheetOpen, setCurrencySheetOpen] = useState(false);
   const [payerSheetOpen, setPayerSheetOpen] = useState(false);
   const [rateStatus, setRateStatus] = useState<'idle' | 'loading' | 'failed'>('idle');
   const [hasIof, setHasIof] = useState(initial === undefined ? true : initial.iofPpm > 0);
@@ -315,16 +325,6 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
     onPress: () => { setPaidBy(person.id); },
   }));
 
-  // Só as moedas escolhidas na abertura da viagem — nunca o catálogo do mundo
-  // inteiro. Quem precisa de uma moeda nova na viagem acrescenta em Editar
-  // viagem, não no meio de um lançamento.
-  const currencyActions: SheetAction[] = tripCurrencies.map((code) => ({
-    key: code,
-    label: code,
-    selected: code === currency,
-    onPress: () => { setCurrency(code); },
-  }));
-
   const toggle = (participantId: string): void => {
     setSelected((current) =>
       current.includes(participantId)
@@ -414,43 +414,39 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
             fileira de chips no topo, e o valor sobrava sozinho no meio de um
             vazio de duzentos pixels. */}
         <View style={{ alignItems: 'center', gap: 7, paddingTop: SPACING.lg, paddingBottom: SPACING.sm }}>
+          {/* Rádio, não menu: com duas ou três moedas — o caso comum — abrir
+              uma folha só para trocar era um toque a mais para ver as opções
+              que já cabem na tela inteiras. */}
+          {tripCurrencies.length > 1 ? (
+            <View
+              accessibilityRole="radiogroup"
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: SPACING.sm,
+                marginBottom: SPACING.xs,
+              }}
+            >
+              {tripCurrencies.map((code) => (
+                <RadioChip key={code} label={code} selected={code === currency} onPress={() => { setCurrency(code); }} />
+              ))}
+            </View>
+          ) : null}
+
           <Row gap={10} style={{ alignItems: 'center' }}>
-            {tripCurrencies.length > 1 ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Moeda: ${currency}. Tocar para trocar.`}
-                onPress={() => { setCurrencySheetOpen(true); }}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 5,
-                  backgroundColor: t.surfaceAlt,
-                  borderRadius: RADIUS.pill,
-                  paddingVertical: 7,
-                  paddingHorizontal: 13,
-                }}
-              >
-                <Text variant="caption" strong>
-                  {currency}
-                </Text>
-                <View style={{ transform: [{ rotate: '90deg' }] }}>
-                  <IconChevron size={12} color={t.textMuted} />
-                </View>
-              </Pressable>
-            ) : (
-              <View
-                style={{
-                  backgroundColor: t.surfaceAlt,
-                  borderRadius: RADIUS.pill,
-                  paddingVertical: 7,
-                  paddingHorizontal: 13,
-                }}
-              >
-                <Text variant="caption" strong>
-                  {currency}
-                </Text>
-              </View>
-            )}
+            <View
+              style={{
+                backgroundColor: t.surfaceAlt,
+                borderRadius: RADIUS.pill,
+                paddingVertical: 7,
+                paddingHorizontal: 13,
+              }}
+            >
+              <Text variant="caption" strong>
+                {currency}
+              </Text>
+            </View>
             <TextInput
               value={amountText}
               onChangeText={setAmountText}
@@ -861,13 +857,6 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
         subtitle="A despesa entra como adiantamento de quem pagou."
         actions={payerActions}
         onClose={() => { setPayerSheetOpen(false); }}
-      />
-
-      <ActionSheet
-        visible={currencySheetOpen}
-        title="Moeda da despesa"
-        actions={currencyActions}
-        onClose={() => { setCurrencySheetOpen(false); }}
       />
     </View>
   );
