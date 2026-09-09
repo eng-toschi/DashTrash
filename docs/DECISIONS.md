@@ -350,3 +350,50 @@ custa um toque — o mesmo toque que custava sempre.
 Ordena por `spent_on`, depois `spent_at`: duas despesas do mesmo dia precisam de
 desempate, e a hora é o desempate certo. Não é a última INSERIDA — lançar hoje
 uma despesa de ontem não pode mudar o padrão para amanhã.
+
+## 2026-09-09 — Nova despesa não pergunta quando nem onde — **revoga em parte a de 08/09**
+
+O card "Quando" / "Onde" saiu da tela de lançamento. Despesa nova grava os dois
+sozinha: a hora já nascia em `localIso()` (isso não mudou), e o lugar agora é
+capturado com `capturePlace()` num `useEffect` que roda uma vez, ao abrir a
+tela — sem esperar toque em "Usar GPS".
+
+Isso revoga a frase "a permissão é pedida no toque do Usar GPS" da decisão
+anterior: agora ela é pedida ao abrir uma despesa nova, porque não existe mais
+um botão para pedir por ela. Continua valendo o resto: sem permissão ou sem
+rede a despesa é salva do mesmo jeito, porque `capturePlace` nunca lança, só
+devolve um resultado que a tela ignora quando não tem onde mostrar.
+
+O card volta a aparecer **só na edição** — é ali que faz sentido corrigir o que
+a captura automática errou (GPS impreciso, esqueceu o celular no hotel), não em
+toda despesa nova. Editar uma despesa já era o único lugar em que builds
+anteriores tinham a hora exposta para correção; a diferença é que lançar não
+pede mais nada.
+
+## 2026-09-09 — A moeda da despesa vem só do que a viagem já escolheu
+
+O seletor de moeda do lançamento deixou de abrir o catálogo do mundo inteiro
+(o mesmo `CurrencyPicker` com busca que a abertura da viagem usa) e passou a
+ser uma folha com as moedas que a viagem já tem — mesmo padrão do "Quem
+pagou". `setTripCurrencies` sempre inclui a moeda-base, então a folha nunca
+vem vazia.
+
+Efeito colateral que vale registrar: não dá mais para acrescentar uma moeda
+nova a uma viagem já criada lançando uma despesa nela — a única entrada para
+isso hoje é a tela de abertura (`trip/new.tsx`). Se aparecer a necessidade de
+adicionar moeda depois de aberta a viagem, é uma tela nova, não uma reversão
+desta.
+
+## 2026-09-09 — O IOF pergunta sim/não, sem mostrar a alíquota
+
+A tela de despesa em moeda estrangeira perguntava "Esta compra tem IOF" com uma
+legenda explicando por que ("cartão, espécie e conta global pagam a mesma
+alíquota") e, se marcado, abria um campo para editar o percentual. Virou um
+`Switch` só, rotulado "Tem IOF".
+
+A alíquota nunca desapareceu — ela é sempre `DEFAULT_IOF_PPM`, ou a que a
+despesa já tinha quando editada — só saiu de campo editável para valor fixo. O
+número continua visível onde ele é útil de verdade: na decomposição acima do
+formulário ("R$ 458,80 + IOF R$ 16,06"). Editar a alíquota manualmente deixou
+de ser possível pela tela; se o decreto mudar de novo, é `IOF_DEFAULT_PPM` que
+muda, não um campo que cada pessoa lembra de ajustar.

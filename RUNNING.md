@@ -80,12 +80,15 @@ Tudo funciona **sem internet** — pode ligar o modo avião e continuar usando.
    Participantes e o botão "Pix copia e cola" aparece, com o valor embutido.
 7. **Tema escuro** — o botão redondo no canto superior direito da home cicla
    entre automático (segue o aparelho), claro e escuro.
-8. **Quando e onde** — na despesa, a linha "Quando" abre os seletores de data e
-   hora, e a de baixo aceita o endereço. O "Usar GPS" pede permissão na hora do
-   toque. Vale testar **em modo avião**: a coordenada é guardada mesmo assim, e
-   a tela diz que faltou rede para achar o endereço.
+8. **Quando e onde** — despesa nova não pergunta nada disso: ao abrir a tela, ela
+   já pede a localização sozinha (é aí que a permissão aparece) e grava a hora
+   do momento. Vale testar **em modo avião**: a coordenada é guardada mesmo
+   assim, sem endereço. Para corrigir hora ou lugar, **edite** a despesa depois
+   de salva — é só ali que o card "Quando" / "Onde" aparece.
 9. **Moeda repetida** — lance uma despesa em outra moeda e abra a próxima: ela
-   já vem naquela moeda, não na do acerto.
+   já vem naquela moeda, não na do acerto. O seletor de moeda só mostra as que
+   a viagem já usa — para uma moeda nova, é preciso abrir de novo em "Nova
+   viagem".
 
 ### O que ainda NÃO existe
 

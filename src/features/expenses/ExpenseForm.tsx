@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { addTripCurrency, createExpense, deleteExpense, updateExpense } from '@/commands';
+import { createExpense, deleteExpense, updateExpense } from '@/commands';
 import {
   findMe,
   getTrip,
@@ -47,7 +47,6 @@ import {
 } from '@/state/format';
 import { capturePlace } from '@/services/place';
 import DateTimePicker, { type DateTimePickerChangeEvent } from '@react-native-community/datetimepicker';
-import { CurrencyPicker } from './CurrencyPicker';
 import { ActionSheet, type SheetAction } from '@/ui/ActionSheet';
 import { Avatar, Button, Card, CategoryChip, Chip, Divider, Row, SegmentedControl, Text } from '@/ui/components';
 import { IconCheck, IconChevron, IconClock, IconPin, IconTrash } from '@/ui/icons';
@@ -123,15 +122,16 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
     initial?.currency ?? lastExpenseCurrency(db, tripId) ?? baseCurrency,
   );
   const [rateText, setRateText] = useState(initial === undefined ? '' : formatRate(initial.fxRatePpm));
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [currencySheetOpen, setCurrencySheetOpen] = useState(false);
   const [payerSheetOpen, setPayerSheetOpen] = useState(false);
   const [rateStatus, setRateStatus] = useState<'idle' | 'loading' | 'failed'>('idle');
   const [hasIof, setHasIof] = useState(initial === undefined ? true : initial.iofPpm > 0);
-  const [iofPercentText, setIofPercentText] = useState(
+  // Sem campo de alíquota na tela (§8.1 mudou de ideia): o valor é sempre o
+  // padrão vigente, ou o que a despesa já tinha gravado quando editada.
+  const iofPercentText =
     initial === undefined || initial.iofPpm === 0
       ? String(DEFAULT_IOF_PERCENT).replace('.', ',')
-      : String(initial.iofPpm / 10_000).replace('.', ','),
-  );
+      : String(initial.iofPpm / 10_000).replace('.', ',');
 
   // Quem lança pagou, na esmagadora maioria das vezes. Deixar o default no
   // primeiro da lista alfabética fazia a despesa nascer no nome errado.
@@ -288,6 +288,22 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
     });
   };
 
+  /**
+   * Despesa nova registra hora e lugar sozinha, sem pedir toque nenhum: a hora
+   * já nasce em `localIso()` (acima) e o lugar é capturado aqui, uma vez, ao
+   * abrir a tela. Sem permissão ou sem rede a despesa é salva do mesmo jeito —
+   * é por isso que `capturePlace` nunca lança, só devolve um resultado.
+   *
+   * Só a EDIÇÃO mostra o card "Quando"/"Onde": é onde faz sentido corrigir o
+   * que a captura automática errou, não em toda despesa nova.
+   */
+  useEffect(() => {
+    if (editing) return;
+    useMyLocation();
+    // Roda uma vez, ao abrir a despesa nova — não a cada letra digitada.
+    // `useMyLocation` e `editing` não entram nas deps de propósito.
+  }, [editing]);
+
   const payer = people.find((p) => p.id === paidBy);
 
 
@@ -297,6 +313,16 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
     avatar: { name: person.display_name, seed: person.avatar_seed },
     selected: person.id === paidBy,
     onPress: () => { setPaidBy(person.id); },
+  }));
+
+  // Só as moedas escolhidas na abertura da viagem — nunca o catálogo do mundo
+  // inteiro. Quem precisa de uma moeda nova na viagem acrescenta em Editar
+  // viagem, não no meio de um lançamento.
+  const currencyActions: SheetAction[] = tripCurrencies.map((code) => ({
+    key: code,
+    label: code,
+    selected: code === currency,
+    onPress: () => { setCurrency(code); },
   }));
 
   const toggle = (participantId: string): void => {
@@ -389,27 +415,42 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
             vazio de duzentos pixels. */}
         <View style={{ alignItems: 'center', gap: 7, paddingTop: SPACING.lg, paddingBottom: SPACING.sm }}>
           <Row gap={10} style={{ alignItems: 'center' }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Moeda: ${currency}. Tocar para trocar.`}
-              onPress={() => { setPickerOpen(true); }}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 5,
-                backgroundColor: t.surfaceAlt,
-                borderRadius: RADIUS.pill,
-                paddingVertical: 7,
-                paddingHorizontal: 13,
-              }}
-            >
-              <Text variant="caption" strong>
-                {currency}
-              </Text>
-              <View style={{ transform: [{ rotate: '90deg' }] }}>
-                <IconChevron size={12} color={t.textMuted} />
+            {tripCurrencies.length > 1 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Moeda: ${currency}. Tocar para trocar.`}
+                onPress={() => { setCurrencySheetOpen(true); }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  backgroundColor: t.surfaceAlt,
+                  borderRadius: RADIUS.pill,
+                  paddingVertical: 7,
+                  paddingHorizontal: 13,
+                }}
+              >
+                <Text variant="caption" strong>
+                  {currency}
+                </Text>
+                <View style={{ transform: [{ rotate: '90deg' }] }}>
+                  <IconChevron size={12} color={t.textMuted} />
+                </View>
+              </Pressable>
+            ) : (
+              <View
+                style={{
+                  backgroundColor: t.surfaceAlt,
+                  borderRadius: RADIUS.pill,
+                  paddingVertical: 7,
+                  paddingHorizontal: 13,
+                }}
+              >
+                <Text variant="caption" strong>
+                  {currency}
+                </Text>
               </View>
-            </Pressable>
+            )}
             <TextInput
               value={amountText}
               onChangeText={setAmountText}
@@ -477,13 +518,15 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
 
                 <Divider />
 
+                {/* Sem legenda e sem alíquota à mostra: a tela só precisa
+                    perguntar se tem IOF ou não. A alíquota usada é a
+                    `DEFAULT_IOF_PPM` do momento — o valor já aparece somado
+                    na decomposição acima ("R$ X + IOF R$ Y"), que é onde
+                    essa informação é útil de verdade. */}
                 <Row>
-                  <View style={{ flex: 1 }}>
-                    <Text variant="label">Esta compra tem IOF</Text>
-                    <Text variant="caption" tone="faint">
-                      Cartão, espécie e conta global pagam a mesma alíquota.
-                    </Text>
-                  </View>
+                  <Text variant="label" style={{ flex: 1 }}>
+                    Tem IOF
+                  </Text>
                   <Switch
                     value={hasIof}
                     onValueChange={setHasIof}
@@ -491,24 +534,6 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
                     trackColor={{ true: t.accent, false: t.border }}
                   />
                 </Row>
-
-                {hasIof ? (
-                  <Row>
-                    <Text variant="caption" tone="muted" style={{ flex: 1 }}>
-                      Alíquota
-                    </Text>
-                    <TextInput
-                      value={iofPercentText}
-                      onChangeText={setIofPercentText}
-                      keyboardType="decimal-pad"
-                      accessibilityLabel="Alíquota de IOF"
-                      style={{ fontSize: 16, fontFamily: FONT.bold, color: t.text, minWidth: 60, textAlign: 'right' }}
-                    />
-                    <Text variant="body" tone="muted">
-                      %
-                    </Text>
-                  </Row>
-                ) : null}
               </View>
             </Card>
           ) : null}
@@ -537,86 +562,88 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
           ))}
         </ScrollView>
 
-        <Card style={{ paddingVertical: 13, paddingHorizontal: 17, borderRadius: RADIUS.lg }}>
-          <View style={{ gap: SPACING.md }}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Row gap={SPACING.sm} style={{ flex: 1 }}>
-                <IconClock size={17} color={t.textFaint} />
-                <Text variant="label" tone="muted">
-                  Quando
-                </Text>
+        {editing ? (
+          <Card style={{ paddingVertical: 13, paddingHorizontal: 17, borderRadius: RADIUS.lg }}>
+            <View style={{ gap: SPACING.md }}>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Row gap={SPACING.sm} style={{ flex: 1 }}>
+                  <IconClock size={17} color={t.textFaint} />
+                  <Text variant="label" tone="muted">
+                    Quando
+                  </Text>
+                </Row>
+                <Row gap={SPACING.sm}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Data da despesa"
+                    onPress={() => { setPicking('date'); }}
+                    hitSlop={6}
+                    style={{ backgroundColor: t.surfaceAlt, borderRadius: RADIUS.pill, paddingVertical: 6, paddingHorizontal: 12 }}
+                  >
+                    <Text variant="caption" strong>
+                      {dayLabel(spentOn)}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Hora da despesa"
+                    onPress={() => { setPicking('time'); }}
+                    hitSlop={6}
+                    style={{ backgroundColor: t.surfaceAlt, borderRadius: RADIUS.pill, paddingVertical: 6, paddingHorizontal: 12 }}
+                  >
+                    <Text variant="caption" strong numeric>
+                      {timeLabel(spentAt) ?? '--:--'}
+                    </Text>
+                  </Pressable>
+                </Row>
               </Row>
+
+              <Divider />
+
               <Row gap={SPACING.sm}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Data da despesa"
-                  onPress={() => { setPicking('date'); }}
-                  hitSlop={6}
-                  style={{ backgroundColor: t.surfaceAlt, borderRadius: RADIUS.pill, paddingVertical: 6, paddingHorizontal: 12 }}
-                >
-                  <Text variant="caption" strong>
-                    {dayLabel(spentOn)}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Hora da despesa"
-                  onPress={() => { setPicking('time'); }}
-                  hitSlop={6}
-                  style={{ backgroundColor: t.surfaceAlt, borderRadius: RADIUS.pill, paddingVertical: 6, paddingHorizontal: 12 }}
-                >
-                  <Text variant="caption" strong numeric>
-                    {timeLabel(spentAt) ?? '--:--'}
-                  </Text>
-                </Pressable>
+                <IconPin size={17} color={t.textFaint} />
+                <TextInput
+                  value={placeLabel}
+                  onChangeText={(text) => {
+                    setPlaceLabel(text);
+                    setPlaceStatus('idle');
+                  }}
+                  placeholder="Onde foi?"
+                  placeholderTextColor={t.textFaint}
+                  accessibilityLabel="Endereço da despesa"
+                  style={{ flex: 1, fontSize: 15, fontFamily: FONT.semi, color: t.text, minHeight: 26 }}
+                />
+                {placeStatus === 'loading' ? (
+                  <ActivityIndicator size="small" color={t.textFaint} />
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Usar minha localização"
+                    onPress={useMyLocation}
+                    hitSlop={8}
+                  >
+                    <Text variant="caption" strong tone="accent">
+                      Usar GPS
+                    </Text>
+                  </Pressable>
+                )}
               </Row>
-            </Row>
 
-            <Divider />
+              {placeStatus === 'denied' ? (
+                <Text variant="caption" tone="warning">
+                  Sem permissão de localização. Dá para digitar o lugar aqui do mesmo jeito.
+                </Text>
+              ) : null}
 
-            <Row gap={SPACING.sm}>
-              <IconPin size={17} color={t.textFaint} />
-              <TextInput
-                value={placeLabel}
-                onChangeText={(text) => {
-                  setPlaceLabel(text);
-                  setPlaceStatus('idle');
-                }}
-                placeholder="Onde foi?"
-                placeholderTextColor={t.textFaint}
-                accessibilityLabel="Endereço da despesa"
-                style={{ flex: 1, fontSize: 15, fontFamily: FONT.semi, color: t.text, minHeight: 26 }}
-              />
-              {placeStatus === 'loading' ? (
-                <ActivityIndicator size="small" color={t.textFaint} />
-              ) : (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Usar minha localização"
-                  onPress={useMyLocation}
-                  hitSlop={8}
-                >
-                  <Text variant="caption" strong tone="accent">
-                    Usar GPS
-                  </Text>
-                </Pressable>
-              )}
-            </Row>
-
-            {placeStatus === 'denied' ? (
-              <Text variant="caption" tone="warning">
-                Sem permissão de localização. Dá para digitar o lugar aqui do mesmo jeito.
-              </Text>
-            ) : null}
-
-            {placeStatus === 'no_address' && coords !== undefined ? (
-              <Text variant="caption" tone="faint" numeric>
-                Ponto guardado ({coords.latitude.toFixed(4)}, {coords.longitude.toFixed(4)}) — sem rede para
-                achar o endereço. Escreva o nome do lugar se quiser.
-              </Text>
-            ) : null}
-          </View>
-        </Card>
+              {placeStatus === 'no_address' && coords !== undefined ? (
+                <Text variant="caption" tone="faint" numeric>
+                  Ponto guardado ({coords.latitude.toFixed(4)}, {coords.longitude.toFixed(4)}) — sem rede para
+                  achar o endereço. Escreva o nome do lugar se quiser.
+                </Text>
+              ) : null}
+            </View>
+          </Card>
+        ) : null}
 
         {/* Uma linha, não um card com uma fileira de chips: quem pagou é quase
             sempre quem está lançando, então isto é confirmação, não escolha. */}
@@ -836,17 +863,11 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
         onClose={() => { setPayerSheetOpen(false); }}
       />
 
-      <CurrencyPicker
-        visible={pickerOpen}
-        selected={currency}
-        recent={tripCurrencies}
-        onSelect={(code) => {
-          setCurrency(code);
-          // Escolher no seletor completo acrescenta a moeda à viagem, para ela
-          // virar atalho na próxima despesa.
-          mutate((database, ctx) => { addTripCurrency(database, ctx, tripId, code); });
-        }}
-        onClose={() => { setPickerOpen(false); }}
+      <ActionSheet
+        visible={currencySheetOpen}
+        title="Moeda da despesa"
+        actions={currencyActions}
+        onClose={() => { setCurrencySheetOpen(false); }}
       />
     </View>
   );

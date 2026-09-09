@@ -9,4 +9,4 @@ export const APP_NAME = 'Rachei';
  *
  * Suba este número a cada correção enviada para teste.
  */
-export const APP_BUILD = 'b17';
+export const APP_BUILD = 'b18';
