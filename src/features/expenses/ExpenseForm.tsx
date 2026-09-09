@@ -8,6 +8,8 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  InputAccessoryView,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -60,12 +62,21 @@ import {
   SegmentedControl,
   Text,
 } from '@/ui/components';
-import { IconCheck, IconChevron, IconClock, IconPin, IconTrash } from '@/ui/icons';
+import { IconCheck, IconChevron, IconClock, IconPin, IconTrash, IconUsers } from '@/ui/icons';
 import { useTheme, useThemeControl } from '@/ui/theme';
 import { FONT, MIN_TOUCH, RADIUS, SPACING } from '@/ui/tokens';
 
 const LOCALE = 'pt-BR';
 const DEFAULT_IOF_PERCENT = IOF_DEFAULT_PPM.credit_card / 10_000;
+
+/**
+ * O teclado numérico do iOS não tem tecla de "concluído" — é limitação da
+ * plataforma, não escolha nossa. Sem isso, sair do campo depende de adivinhar
+ * que tocar fora funciona. Os três campos de valor (total, taxa, valor exato
+ * por pessoa) compartilham a mesma barra: o sistema mostra a de quem estiver
+ * focado.
+ */
+const AMOUNT_ACCESSORY_ID = 'expense-form-amount-done';
 
 export interface ExpenseFormInitial {
   readonly id: string;
@@ -453,6 +464,9 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
               placeholder="0,00"
               placeholderTextColor={t.textFaint}
               keyboardType="decimal-pad"
+              returnKeyType="done"
+              onSubmitEditing={() => { Keyboard.dismiss(); }}
+              inputAccessoryViewID={Platform.OS === 'ios' ? AMOUNT_ACCESSORY_ID : undefined}
               autoFocus={!editing}
               accessibilityLabel="Valor da despesa"
               style={{
@@ -506,6 +520,9 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
                     placeholder="0,00"
                     placeholderTextColor={t.textFaint}
                     keyboardType="decimal-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={() => { Keyboard.dismiss(); }}
+                    inputAccessoryViewID={Platform.OS === 'ios' ? AMOUNT_ACCESSORY_ID : undefined}
                     accessibilityLabel="Taxa de câmbio"
                     style={{ fontSize: 16, fontFamily: FONT.bold, color: t.text, minWidth: 90, textAlign: 'right' }}
                   />
@@ -678,26 +695,28 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
               </Text>
             </Row>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.sm }}>
-              <Chip
-                label="Todos"
-                selected={selected.length === people.length}
-                onPress={() => { setSelected(people.map((p) => p.id)); }}
-              />
-              {subgroups.map((group) => (
-                <Chip
-                  key={group.id}
-                  label={
-                    group.label ??
-                    group.participantIds
-                      .map((pid) => people.find((p) => p.id === pid)?.display_name ?? '')
-                      .filter((n) => n !== '')
-                      .join(', ')
-                  }
-                  onPress={() => { setSelected(group.participantIds); }}
-                />
-              ))}
-            </ScrollView>
+            {/* "Todos" virou a primeira linha da lista, não mais um chip: um
+                chip do tamanho de uma pessoa, sempre selecionado no caso comum
+                (todo mundo na despesa), só ocupava espaço para dizer o que já
+                era verdade. Os subgrupos salvos continuam como chips — esses
+                sim mudam de despesa para despesa. */}
+            {subgroups.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.sm }}>
+                {subgroups.map((group) => (
+                  <Chip
+                    key={group.id}
+                    label={
+                      group.label ??
+                      group.participantIds
+                        .map((pid) => people.find((p) => p.id === pid)?.display_name ?? '')
+                        .filter((n) => n !== '')
+                        .join(', ')
+                    }
+                    onPress={() => { setSelected(group.participantIds); }}
+                  />
+                ))}
+              </ScrollView>
+            ) : null}
 
             <SegmentedControl
               value={mode}
@@ -709,6 +728,52 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
             />
 
             <View>
+              {people.length === 0 ? null : (
+                <>
+                  <Pressable
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected.length === people.length }}
+                    accessibilityLabel="Todos"
+                    onPress={() => { setSelected(people.map((p) => p.id)); }}
+                    style={{ minHeight: MIN_TOUCH, justifyContent: 'center' }}
+                  >
+                    <Row gap={11}>
+                      <View
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: RADIUS.pill,
+                          backgroundColor: t.surfaceAlt,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <IconUsers size={16} color={t.textMuted} />
+                      </View>
+                      <Text variant="body" strong style={{ flex: 1 }}>
+                        Todos
+                      </Text>
+                      <View
+                        style={{
+                          width: 23,
+                          height: 23,
+                          borderRadius: RADIUS.sm,
+                          backgroundColor: selected.length === people.length ? t.accent : 'transparent',
+                          borderWidth: selected.length === people.length ? 0 : 2,
+                          borderColor: t.border,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {selected.length === people.length ? (
+                          <IconCheck size={14} color={t.onAccent} />
+                        ) : null}
+                      </View>
+                    </Row>
+                  </Pressable>
+                  <Divider />
+                </>
+              )}
               {people.map((person, index) => {
                 const isOn = selected.includes(person.id);
                 return (
@@ -750,6 +815,9 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
                             placeholder="0,00"
                             placeholderTextColor={t.textFaint}
                             keyboardType="decimal-pad"
+                            returnKeyType="done"
+                            onSubmitEditing={() => { Keyboard.dismiss(); }}
+                            inputAccessoryViewID={Platform.OS === 'ios' ? AMOUNT_ACCESSORY_ID : undefined}
                             accessibilityLabel={`Valor de ${person.display_name}`}
                             style={{
                               fontSize: 15,
@@ -862,6 +930,41 @@ export function ExpenseForm({ tripId, initial }: { tripId: string; initial?: Exp
         actions={payerActions}
         onClose={() => { setPayerSheetOpen(false); }}
       />
+
+      {Platform.OS === 'ios' ? (
+        <InputAccessoryView nativeID={AMOUNT_ACCESSORY_ID}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'flex-end',
+              backgroundColor: t.surfaceAlt,
+              borderTopWidth: StyleSheet.hairlineWidth * 2,
+              borderTopColor: t.border,
+              padding: SPACING.sm,
+            }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Concluído"
+              onPress={() => { Keyboard.dismiss(); }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: t.accent,
+                borderRadius: RADIUS.pill,
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+              }}
+            >
+              <IconCheck size={14} color={t.onAccent} />
+              <Text variant="caption" strong style={{ color: t.onAccent }}>
+                Concluído
+              </Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      ) : null}
     </View>
   );
 }

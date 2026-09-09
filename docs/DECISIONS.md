@@ -428,3 +428,22 @@ Duas limpezas na mesma tela, pedidas juntas:
   aparecem acima, na decomposição do valor, dizem a mesma coisa. O texto só
   volta durante a busca ("Buscando a cotação de hoje…"), que é a única hora
   em que uma frase ali ajuda de verdade.
+
+## 2026-09-09 — Botão de concluído nos campos de valor; "Todos" vira linha, não chip
+
+**Teclado numérico sem tecla de saída.** `decimal-pad` no iOS não tem tecla de
+retorno — é limitação da plataforma, não escolha do app. Os três campos de
+valor (total, taxa de câmbio, valor exato por pessoa) agora compartilham um
+`InputAccessoryView` com um botão "Concluído" que chama `Keyboard.dismiss()`.
+Compartilham o MESMO `nativeID` de propósito: o sistema mostra a barra de
+quem estiver focado, então não precisa de uma por campo. No Android também
+ganharam `returnKeyType="done"` + `onSubmitEditing`, que ajuda em teclados que
+não trazem confirmação própria no numérico.
+
+**"Todos" deixou de ser chip.** Um chip do tamanho de uma pessoa, quase
+sempre marcado (o caso comum é todo mundo na divisão), só ocupava espaço para
+dizer o que já era verdade na maioria das despesas. Virou a primeira linha da
+lista de participantes, com o mesmo desenho de linha e caixa de seleção —
+some quando a viagem não tem ninguém para listar. Os subgrupos salvos
+continuam como chips, porque esses de fato mudam de despesa para despesa; a
+fileira de chips agora só aparece quando existe pelo menos um subgrupo salvo.
