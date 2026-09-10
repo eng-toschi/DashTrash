@@ -101,3 +101,55 @@ Tudo funciona **sem internet** — pode ligar o modo avião e continuar usando.
 
 Hierarquia e ritmo das telas, o que ficou pequeno demais para o dedo, onde você
 hesitou, e principalmente: **algum valor que pareceu errado**. Print ajuda.
+
+## Publicar de verdade (fora do Expo Go)
+
+Expo Go é ótimo para testar rápido, mas depende de você estar com o app aberto
+e a pergunta de escanear QR toda vez. Um **build** é um instalável de verdade —
+ícone próprio na tela, sem depender de nada disso.
+
+### Android — hoje, de graça
+
+1. Crie uma conta em [expo.dev](https://expo.dev) (grátis; é diferente da conta
+   do GitHub).
+2. No terminal, dentro de `~/DashTrash`:
+   ```bash
+   npm install -g eas-cli
+   eas login
+   eas build --profile preview --platform android
+   ```
+   O perfil `preview` (já configurado em `eas.json`) gera um **APK**, não o
+   formato que a Play Store exige — é o jeito de instalar direto, sem loja.
+3. O build roda na nuvem da Expo (uns 10–15 min.; a conta grátis inclui um
+   número limitado de builds por mês, suficiente para isso). No fim aparece um
+   link — abra ele no celular Android e instale habilitando "fontes
+   desconhecidas" quando o sistema perguntar.
+
+### iPhone — exige conta paga da Apple
+
+Não existe caminho gratuito razoável aqui: um build sem conta paga expira em
+7 dias, sempre. Com a **Apple Developer Program** (US$ 99/ano, conta seguindo
+o mesmo padrão da Expo — pessoal, em seu nome): TestFlight, até 100
+testadores, build válido por 90 dias por vez.
+
+```bash
+eas build --profile preview --platform ios
+```
+
+Na primeira vez o EAS pergunta interativamente pelas credenciais da Apple e
+cuida de gerar certificado e provisionamento — não precisa mexer no Xcode.
+
+### O domínio no registro.br
+
+Ainda não usei ele em nada — falta eu saber para o quê, porque muda o que
+preciso montar:
+
+- **Uma página para baixar o APK**, em vez de mandar o link cru do build da
+  Expo — mais simples, e só precisa de uma página estática.
+- **O link de convite abrindo o app direto** (`https://seudominio/j/{token}`
+  → abre o RachaPila se instalado, ou cai numa página web se não) — é o
+  "link universal" da Fase 6, e exige hospedar dois arquivos de verificação
+  (`apple-app-site-association` e `assetlinks.json`) num servidor de verdade
+  atrás do domínio, não só configurar DNS.
+- Os dois, ou algo além disso (uma página de apresentação do app, por
+  exemplo).
