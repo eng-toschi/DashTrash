@@ -473,3 +473,41 @@ simples no canto direito: o mesmo desenho que o Safari e o Mail usam nos
 próprios campos numéricos do iOS. É o texto que ocupa o lugar onde ficaria a
 tecla Enter, se o teclado decimal tivesse uma — que é a limitação real (da
 Apple, não do app): esse teclado nunca teve essa tecla.
+
+## 2026-09-10 — Schema do Supabase testado localmente antes de existir o projeto
+
+Escrevi `supabase/schema.sql` (Fase 6) e validei rodando de verdade contra um
+Postgres 16 local, com um `auth.users`/`auth.uid()` de mentira só para o
+teste — não dava para confiar em "parece certo" numa política de RLS: um erro
+aqui vaza a viagem de um amigo para o celular de outro.
+
+Dois pontos que só o teste real revelou:
+
+- **Ordem das tabelas importa.** `trip_invites.participant_id` referencia
+  `participants`, que só existe depois — a primeira versão do arquivo criava
+  `trip_invites` cedo demais e o Postgres recusava com "relation does not
+  exist". Reordenado: `trip_invites` vem depois de `participants`.
+- **RLS de verdade precisa de um papel restrito.** Rodando como superusuário
+  (o padrão do `psql`), toda política de RLS é ignorada silenciosamente — o
+  teste passaria mesmo com a política errada. Só validou de verdade depois de
+  criar um `ROLE authenticated` sem privilégio de bypass e confirmar que uma
+  conta nunca convidada (`Carla`) lê zero linhas de uma viagem que não é
+  dela — o teste que a própria spec exige (§5.4).
+
+Duas decisões de desenho, ambas por causa do mesmo problema — RLS não pode
+depender de si mesma:
+
+- `is_trip_member(trip_id)` é `security definer`: a política de leitura de
+  `trip_members` não pode exigir already ler `trip_members` para decidir se
+  pode ler `trip_members`, senão vira círculo.
+- **Ninguém insere em `trip_members` direto do cliente.** A única porta é
+  `accept_trip_invite(token)`, também `security definer`, que confere token,
+  validade e limite de usos antes de inserir — sem isso, qualquer usuário
+  autenticado poderia se auto-adicionar a qualquer `trip_id` que adivinhasse.
+
+O que o arquivo NÃO inclui, de propósito: nada do `ops_outbox`, `sync_state`
+ou `fx_rates` do aparelho. Os dois primeiros são a mecânica de transporte do
+PRÓPRIO dispositivo — nunca saem dele; o schema do servidor lê e escreve nas
+tabelas de domínio direto, com `server_seq` fazendo o papel de cursor.
+`fx_rates` é cache de uma cotação pública sem dono: sincronizar é trabalho
+sem benefício, cada aparelho busca de novo.
