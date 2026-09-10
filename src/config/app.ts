@@ -1,4 +1,4 @@
-export const APP_NAME = 'Rachei';
+export const APP_NAME = 'RachaPila';
 
 /**
  * Marca de versão visível na home.
@@ -9,4 +9,4 @@ export const APP_NAME = 'Rachei';
  *
  * Suba este número a cada correção enviada para teste.
  */
-export const APP_BUILD = 'b22';
+export const APP_BUILD = 'b23';

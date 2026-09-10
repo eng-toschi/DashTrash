@@ -8,6 +8,10 @@
 import * as SQLite from 'expo-sqlite';
 import { withTransactions, type Database, type SqlParams } from '../driver';
 
+// O nome do arquivo NÃO acompanha o rebatismo do app para RachaPila de propósito:
+// é só um detalhe de armazenamento, invisível ao usuário, e trocá-lo abriria um
+// banco novo e vazio no próximo lançamento — apagando, na prática, toda viagem já
+// testada no aparelho.
 export function openExpoSqlite(name = 'rachei.db'): Database {
   const handle = SQLite.openDatabaseSync(name);
   handle.execSync('PRAGMA foreign_keys = ON');

@@ -1,4 +1,4 @@
-# Rachei
+# RachaPila
 
 App de divisão de despesas de viagem para iPhone e Android. Em construção.
 

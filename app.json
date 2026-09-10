@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Rachei",
-    "slug": "rachei",
-    "scheme": "rachei",
+    "name": "RachaPila",
+    "slug": "rachapila",
+    "scheme": "rachapila",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "bundleIdentifier": "app.rachei.mobile",
+      "bundleIdentifier": "app.rachapila.mobile",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Para fotografar recibos e ler o QR do convite.",
@@ -17,7 +17,7 @@
       }
     },
     "android": {
-      "package": "app.rachei.mobile",
+      "package": "app.rachapila.mobile",
       "edgeToEdgeEnabled": true,
       "permissions": [
         "CAMERA",

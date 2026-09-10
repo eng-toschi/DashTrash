@@ -15,7 +15,7 @@ App mobile (iOS + Android) para um grupo dividir despesas durante viagens **inte
 Cada pessoa instala no próprio celular, lança suas despesas e tudo sincroniza entre os
 dispositivos. Uso privado — entre amigos, sem publicação nas lojas.
 
-**Nome de trabalho:** `Rachei` (constante `APP_NAME` em `src/config/app.ts`).
+**Nome de trabalho:** `RachaPila` (constante `APP_NAME` em `src/config/app.ts`).
 
 ### As quatro decisões que definem o escopo
 
@@ -558,7 +558,7 @@ Toda tela precisa dos **quatro estados**: carregando (skeleton, não spinner cen
    por pessoa não fecharem com o total, ele diz isso em vez de parecer correto.
 9. **Participantes.** Adicionar, renomear, arquivar. **Remover só se saldo zero e sem despesas** —
    caso contrário, arquivar. Isso é o que impede corromper o saldo do grupo inteiro.
-10. **Convite.** `rachei://join/{token}` + link universal + **QR code** — o caso real é a mesa
+10. **Convite.** `rachapila://join/{token}` + link universal + **QR code** — o caso real é a mesa
     do restaurante, não o e-mail.
 11. **Ajustes.** Idioma, tema, moeda padrão, exportar CSV, apagar dados locais, diagnóstico.
 
