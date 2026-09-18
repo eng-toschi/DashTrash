@@ -3,6 +3,12 @@ import { installRandomSource } from '@/state/randomPolyfill';
 // Antes de qualquer import que possa gerar um id: o Hermes não tem `crypto`.
 installRandomSource();
 
+// O Supabase (e o WHATWG fetch por baixo dele) espera um `URL` completo. O
+// Hermes tem uma implementação parcial que já causou bug em outro projeto
+// desta mesma stack — o polyfill substitui por uma implementação testada,
+// antes de qualquer código que possa construir uma URL.
+import 'react-native-url-polyfill/auto';
+
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

@@ -511,3 +511,34 @@ PRÓPRIO dispositivo — nunca saem dele; o schema do servidor lê e escreve nas
 tabelas de domínio direto, com `server_seq` fazendo o papel de cursor.
 `fx_rates` é cache de uma cotação pública sem dono: sincronizar é trabalho
 sem benefício, cada aparelho busca de novo.
+
+## 2026-09-18 — Sessão dividida em pedaços para caber no SecureStore
+
+`splitIntoChunks`/`joinChunks` moram em `state/textChunks.ts`, sem importar
+`expo-secure-store` — mesmo motivo do `formatAddress` (§08/09): um teste que
+importa um módulo nativo da Expo derruba a suíte inteira no Node.
+
+O SecureStore tem um limite histórico de 2048 bytes por entrada, e a sessão
+do Supabase (access token + refresh token + usuário, em JSON) passa dele com
+frequência. `secureStorageAdapter` divide o valor em pedaços de 1800 bytes,
+grava um `<key>.count` e um `<key>.0`, `<key>.1`... e remonta na leitura. Se a
+sessão nova tem menos pedaços que a antiga, os que sobraram são apagados —
+sem isso um pedaço velho ficaria colado no fim do valor novo.
+
+Se um pedaço sumir no meio (app encerrado durante uma gravação, por exemplo),
+`getItem` devolve `null` para a chave inteira, não uma sessão pela metade: o
+app pede login de novo, que é seguro; usar metade de um token não seria.
+
+## 2026-09-18 — Esta sessão remota não alcança o Supabase do usuário
+
+Tentei confirmar a URL e a chave publicáveis batendo direto no
+`/auth/v1/settings` do projeto — a política de saída deste ambiente bloqueia
+o domínio (`wqoubxpidrfnitttkqej.supabase.co`), junto com `api.expo.dev` e
+`reactnative.directory` (explica o aviso do `expo install` mais cedo).
+
+Consequência prática: o schema (`supabase/schema.sql`) foi validado contra um
+Postgres local jogado fora no fim, não contra o projeto real — e o cliente
+Supabase (`services/supabase.ts`) foi conferido por `tsc`/lint/testes/bundler,
+não por uma chamada de verdade. A verificação ao vivo — login funcionando,
+RLS no ar contra o projeto real — continua acontecendo no aparelho, como todo
+o resto deste app.
