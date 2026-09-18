@@ -542,3 +542,34 @@ Supabase (`services/supabase.ts`) foi conferido por `tsc`/lint/testes/bundler,
 não por uma chamada de verdade. A verificação ao vivo — login funcionando,
 RLS no ar contra o projeto real — continua acontecendo no aparelho, como todo
 o resto deste app.
+
+## 2026-09-18 — Tela de entrada: PKCE, e o link mágico não bloqueia o app local
+
+Primeira tela de UI da Fase 6 (`app/login.tsx`, `state/auth.tsx`). Três
+decisões que valem registrar:
+
+- **`flowType: 'pkce'`**, não o implícito (padrão do Supabase para web). O
+  implícito devolve a sessão no fragmento da URL (`#access_token=...`),
+  pensado para uma aba de navegador lendo `window.location.hash` — não existe
+  isso num deep link de app. PKCE devolve um `?code=...` que o app troca por
+  sessão à mão (`exchangeCodeForSession`), com `detectSessionInUrl: false`
+  desligando a leitura automática pensada pro navegador.
+
+- **O redirect não pode ser um texto fixo `rachapila://...`.** Testando pelo
+  Expo Go, o app não é dono do esquema `rachapila://` — quem é dono é o
+  próprio Expo Go, e o link de volta é um `exp://<ip>:<porta>/--/` que muda a
+  cada `expo start`. `Linking.createURL('/')` resolve para o certo em cada
+  ambiente sozinho; o que precisa ficar registrado em Authentication → URL
+  Configuration → Redirect URLs, no painel do Supabase, são os PADRÕES
+  `exp://**` (Expo Go, hoje) e `rachapila://**` (build de verdade, mais
+  adiante) — nunca uma URL fixa, porque ela muda de ip/porta a cada sessão de
+  desenvolvimento.
+
+- **A tela de login não aparece sozinha em lugar nenhum.** Um botão de conta
+  (`AccountButton`) na home abre `/login` como modal; ninguém é interrompido
+  para logar, e todo o app local continua funcionando por baixo sem sessão
+  nenhuma — é a regra nº 6 do §17 ("não peça login antes de entregar valor"),
+  e aqui o valor já foi entregue há muitas versões.
+
+Ainda falta, antes de qualquer teste ao vivo: cadastrar os dois padrões de
+redirect no painel (ver RUNNING.md).

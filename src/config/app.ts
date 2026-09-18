@@ -9,4 +9,4 @@ export const APP_NAME = 'RachaPila';
  *
  * Suba este número a cada correção enviada para teste.
  */
-export const APP_BUILD = 'b23';
+export const APP_BUILD = 'b24';

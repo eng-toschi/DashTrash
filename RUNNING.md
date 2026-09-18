@@ -89,11 +89,20 @@ Tudo funciona **sem internet** — pode ligar o modo avião e continuar usando.
    já vem naquela moeda, não na do acerto. O seletor de moeda só mostra as que
    a viagem já usa — para uma moeda nova, é preciso abrir de novo em "Nova
    viagem".
+10. **Entrar (Fase 6, começando)** — o ícone de pessoa ao lado do tema, na
+    home, abre a tela de entrada. **Antes de testar**, cadastre no painel do
+    Supabase (Authentication → URL Configuration → Redirect URLs) os dois
+    padrões: `exp://**` e `rachapila://**` — sem isso o Supabase recusa o
+    link mágico com "redirect not allowed". Digite o e-mail, toque em
+    "Enviar link mágico", e abra o e-mail **no mesmo celular** — o link
+    precisa voltar para o app que mandou o pedido. O resto da Fase 6 (convite,
+    sincronizar entre aparelhos) ainda não existe; isto é só a entrada.
 
 ### O que ainda NÃO existe
 
-- Convite por link ou QR, e sincronização entre aparelhos (Fase 6). A viagem vive
-  só naquele celular.
+- Convite por link ou QR, e sincronização entre aparelhos (Fase 6, em
+  andamento — a entrada já existe, o resto não). A viagem vive só naquele
+  celular.
 - Busca automática de cotação (Fase 4).
 - Foto de recibo, exportar CSV, notificações (Fase 7).
 

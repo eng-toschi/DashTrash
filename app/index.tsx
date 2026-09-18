@@ -13,6 +13,7 @@ import { useDatabase, useMutate, useQuery } from '@/state/database';
 import { todayIso } from '@/state/format';
 import { periodLabel } from '@/state/format';
 import {
+  AccountButton,
   Avatar,
   Badge,
   Button,
@@ -154,7 +155,10 @@ export default function TripsScreen() {
             </Text>
             <Text variant="display">Minhas viagens</Text>
           </View>
-          <ThemeToggle />
+          <Row gap={SPACING.sm}>
+            <AccountButton />
+            <ThemeToggle />
+          </Row>
         </Row>
 
         {trips.length === 0 ? (

@@ -16,8 +16,10 @@ import {
   type ViewStyle,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { formatMoney, type Money } from '@/domain/money';
-import { CATEGORY_ICONS, IconAuto, IconMoon, IconSun } from './icons';
+import { useAuth } from '@/state/auth';
+import { CATEGORY_ICONS, IconAuto, IconMoon, IconSun, IconUser } from './icons';
 import {
   FONT,
   MIN_TOUCH,
@@ -550,6 +552,54 @@ export function ThemeToggle({ size = 40 }: { size?: number }) {
       })}
     >
       <Icon size={Math.round(size * 0.5)} color={t.textMuted} />
+    </Pressable>
+  );
+}
+
+/**
+ * Abre a tela de entrada (Fase 6). Um pontinho verde no canto avisa "já
+ * conectado" sem precisar abrir a tela pra saber — o mesmo motivo do
+ * `APP_BUILD` na home: informação de estado que custa caro perguntar toda
+ * hora.
+ */
+export function AccountButton({ size = 40 }: { size?: number }) {
+  const t = useTheme();
+  const { session } = useAuth();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={session === null ? 'Entrar' : `Conectado como ${session.user.email ?? ''}`}
+      hitSlop={8}
+      onPress={() => { router.push('/login'); }}
+      style={({ pressed }) => ({
+        width: size,
+        height: size,
+        borderRadius: RADIUS.pill,
+        backgroundColor: t.surface,
+        borderColor: t.border,
+        borderWidth: StyleSheet.hairlineWidth * 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <IconUser size={Math.round(size * 0.5)} color={t.textMuted} />
+      {session === null ? null : (
+        <View
+          style={{
+            position: 'absolute',
+            top: 1,
+            right: 1,
+            width: 10,
+            height: 10,
+            borderRadius: RADIUS.pill,
+            backgroundColor: t.positive,
+            borderWidth: 1.5,
+            borderColor: t.surface,
+          }}
+        />
+      )}
     </Pressable>
   );
 }

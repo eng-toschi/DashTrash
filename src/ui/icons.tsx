@@ -48,6 +48,13 @@ export const IconUsers = ({ size, color }: IconProps) => (
   </Svg>
 );
 
+export const IconUser = ({ size, color }: IconProps) => (
+  <Svg {...base(size)}>
+    <Path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" stroke={color} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round" />
+    <Circle cx="12" cy="7" r="4" stroke={color} strokeWidth={STROKE} />
+  </Svg>
+);
+
 export const IconCopy = ({ size, color }: IconProps) => (
   <Svg {...base(size)}>
     <Path d="M11 9h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z" stroke={color} strokeWidth={STROKE} strokeLinejoin="round" />

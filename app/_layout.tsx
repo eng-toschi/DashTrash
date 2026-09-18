@@ -20,6 +20,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/bricolage-grotesque';
 import { Figtree_500Medium, Figtree_600SemiBold, Figtree_700Bold } from '@expo-google-fonts/figtree';
+import { AuthProvider } from '@/state/auth';
 import { DatabaseProvider } from '@/state/database';
 import { ThemeProvider, useTheme, useThemeControl } from '@/ui/theme';
 
@@ -46,7 +47,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <DatabaseProvider>
         <ThemeProvider>
-          <Navigation />
+          <AuthProvider>
+            <Navigation />
+          </AuthProvider>
         </ThemeProvider>
       </DatabaseProvider>
     </SafeAreaProvider>
@@ -67,6 +70,7 @@ function Navigation() {
           animation: 'slide_from_right',
         }}
       >
+        <Stack.Screen name="login" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="trip/new" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen
           name="trip/[id]/expense/new"

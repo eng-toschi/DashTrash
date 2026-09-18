@@ -4,7 +4,9 @@
  * Sessão persistida no SecureStore (`secureStorageAdapter`), nunca em
  * AsyncStorage (spec §12). `detectSessionInUrl: false` porque isso é para
  * apps web lendo o hash da URL depois do redirect — no React Native o link
- * do magic link chega por deep link (`Linking`), não por navegador.
+ * do magic link chega por deep link (`state/auth.tsx` entrega a URL à mão).
+ * `flowType: 'pkce'` pelo mesmo motivo: é o fluxo pensado para link mágico
+ * terminando num deep link de app, não numa aba de navegador.
  */
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/config/supabase';
@@ -16,5 +18,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    flowType: 'pkce',
   },
 });
